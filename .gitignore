@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables & secrets
+.env
+server/.env
+client/.env
+*.env.local
+
+# Production Build outputs
+dist/
+client/dist/
+build/
+
+# Logs & System artifacts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.system_generated/
+.gemini/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
