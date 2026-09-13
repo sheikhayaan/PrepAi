@@ -13,6 +13,9 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import InterviewPage from './pages/InterviewPage';
 import ResultsPage from './pages/ResultsPage';
+import CustomInterviewSetup from './pages/CustomInterviewSetup';
+import QuestionBankExplorer from './pages/QuestionBankExplorer';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore();
@@ -28,6 +31,29 @@ function ProtectedRoute({ children }) {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/dashboard" state={{ from: location }} replace />;
   }
 
   return children;
@@ -75,6 +101,30 @@ export default function App() {
               <ProtectedRoute>
                 <ResultsPage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/custom-interview"
+            element={
+              <ProtectedRoute>
+                <CustomInterviewSetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/questions"
+            element={
+              <ProtectedRoute>
+                <QuestionBankExplorer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboardPage />
+              </AdminRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

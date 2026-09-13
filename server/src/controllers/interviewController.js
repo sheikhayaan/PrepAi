@@ -5,7 +5,18 @@ const { addScoringJob } = require('../jobs/scoringQueue');
 const { sanitizeInput } = require('../utils/security');
 const logger = require('../utils/logger');
 
-// @desc   Start a new interview session with company tier, seniority & package target
+const VALID_INTERVIEW_TYPES = [
+  'dsa',
+  'system_design',
+  'behavioral',
+  'hr_round',
+  'case_study',
+  'product_management',
+  'sales_pitch',
+  'managerial',
+];
+
+// @desc   Start a new interview session with company tier, seniority, package or customConfig
 // @route  POST /api/interviews/start
 // @access Private
 const startInterview = async (req, res, next) => {
@@ -18,12 +29,33 @@ const startInterview = async (req, res, next) => {
       targetPackage = '$250k - $380k',
     } = req.body;
 
-    if (!['dsa', 'system_design', 'behavioral'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid interview type. Must be dsa, system_design, or behavioral.' });
+    if (!VALID_INTERVIEW_TYPES.includes(type)) {
+      return res.status(400).json({
+        error: `Invalid interview type '${type}'. Must be one of: ${VALID_INTERVIEW_TYPES.join(', ')}`,
+      });
     }
 
-    const cleanCompany = sanitizeInput(targetCompany, 100) || 'Google / Meta / FAANG';
-    const cleanSeniority = sanitizeInput(seniorityLevel, 100) || 'L5 (Senior)';
+    // Process & sanitize customConfig if provided by CustomInterviewSetup
+    let customConfig = null;
+    if (req.body.customConfig && typeof req.body.customConfig === 'object') {
+      const raw = req.body.customConfig;
+      const role = sanitizeInput(raw.role, 120);
+      const company = sanitizeInput(raw.targetCompany, 120);
+      const region = raw.region === 'india' ? 'india' : raw.region === 'us' ? 'us' : 'us';
+      const targetSalary = Number(raw.targetSalary) || undefined;
+      const currency = region === 'india' ? 'INR' : 'USD';
+
+      customConfig = {
+        role: role || undefined,
+        targetCompany: company || undefined,
+        region,
+        targetSalary,
+        currency,
+      };
+    }
+
+    const cleanCompany = customConfig?.targetCompany || sanitizeInput(targetCompany, 100) || 'Google / Meta / FAANG';
+    const cleanSeniority = customConfig?.role || sanitizeInput(seniorityLevel, 100) || 'L5 (Senior)';
 
     // 1. Try to dynamically generate tailor-made opening question via Anthropic Claude 3.5 Sonnet
     let initialPrompt = await generateOpeningQuestion({
@@ -32,23 +64,44 @@ const startInterview = async (req, res, next) => {
       targetCompany: cleanCompany,
       seniorityLevel: cleanSeniority,
       targetPackage,
+      customConfig,
     });
 
-    // 2. If Anthropic is offline or no key, pick calibrated question from QuestionBank based on seniority
+    // 2. If Anthropic is offline or no key, pick calibrated question from QuestionBank based on type
     if (!initialPrompt) {
-      const isSenior = cleanSeniority.includes('L5') || cleanSeniority.includes('L6') || cleanSeniority.includes('Staff');
-      const targetDifficulty = isSenior ? { $in: ['medium', 'hard'] } : { $in: ['easy', 'medium'] };
-
-      let questions = await QuestionBank.find({ type, difficulty: targetDifficulty });
-      if (!questions || questions.length === 0) {
-        questions = await QuestionBank.find({ type });
-      }
-
+      let questions = await QuestionBank.find({ type });
       if (questions && questions.length > 0) {
         const randomIndex = Math.floor(Math.random() * questions.length);
         initialPrompt = questions[randomIndex].prompt;
       } else {
-        initialPrompt = 'Can you design a scalable URL shortener like bit.ly? What would the read/write traffic estimates look like, and how would you generate unique 7-character hashes while handling race conditions?';
+        // High quality fallback per type
+        switch (type) {
+          case 'hr_round':
+            initialPrompt = `Welcome to your HR interview for ${cleanCompany}. Could you walk me through your career journey and explain what specifically attracted you to this role?`;
+            break;
+          case 'case_study':
+            initialPrompt = `Our client, a leading fintech enterprise targeting expansion in ${customConfig?.region === 'india' ? 'India' : 'US'}, is seeing customer acquisition costs rise by 40%. How would you structure an investigation to diagnose the root cause?`;
+            break;
+          case 'product_management':
+            initialPrompt = `Imagine you are the Lead PM for ${cleanCompany}'s flagship mobile app. User engagement dropped 15% following our latest release. Walk me through how you would triage this issue and determine what to roll back vs patch.`;
+            break;
+          case 'sales_pitch':
+            initialPrompt = `You are presenting ${cleanCompany}'s enterprise solution to a skeptical VP of Engineering who says: "We already have an internal tool and zero extra budget." Pitch our value proposition and handle their objection.`;
+            break;
+          case 'managerial':
+            initialPrompt = `A senior engineer on your team is consistently missing sprint deadlines and clashing with product managers. Walk me through your 1-on-1 coaching framework and escalation path.`;
+            break;
+          case 'system_design':
+            initialPrompt = `Can you design a scalable distributed rate limiter capable of supporting 500,000 requests per second with sub-5ms latency across global edge locations?`;
+            break;
+          case 'behavioral':
+            initialPrompt = `Tell me about a high-stakes technical disagreement you had with a senior teammate or tech lead. How did you resolve the conflict while maintaining project velocity?`;
+            break;
+          case 'dsa':
+          default:
+            initialPrompt = `Given an array of integers and a target integer k, return the maximum sum of any contiguous subarray of size k. What are the space and time complexities of your approach?`;
+            break;
+        }
       }
     }
 
@@ -59,6 +112,7 @@ const startInterview = async (req, res, next) => {
       targetCompany: cleanCompany,
       seniorityLevel: cleanSeniority,
       targetPackage,
+      customConfig: customConfig || undefined,
       status: 'in_progress',
       maxTurns: 6,
       tokenUsage: { promptTokens: 60, completionTokens: Math.ceil(initialPrompt.length / 4), totalTokens: 60 + Math.ceil(initialPrompt.length / 4) },
@@ -79,6 +133,7 @@ const startInterview = async (req, res, next) => {
       type,
       targetCompany: cleanCompany,
       seniorityLevel: cleanSeniority,
+      hasCustomConfig: Boolean(customConfig),
     });
 
     return res.status(201).json({ session });
@@ -137,6 +192,7 @@ const submitAnswer = async (req, res, next) => {
       companyTier: session.companyTier,
       targetCompany: session.targetCompany,
       seniorityLevel: session.seniorityLevel,
+      customConfig: session.customConfig,
       turns: session.turns,
       latestAnswer: cleanAnswer,
       onChunk: (chunk) => {
@@ -237,10 +293,50 @@ const getUserInterviews = async (req, res, next) => {
   }
 };
 
+// @desc   Get questions with companyTags, level, type and search filters (Feature 3)
+// @route  GET /api/interviews/questions
+// @access Public / Private
+const getQuestions = async (req, res, next) => {
+  try {
+    const { company, level, type, difficulty, search } = req.query;
+    const filter = {};
+
+    if (company && company !== 'All') {
+      filter.companyTags = { $in: [company] };
+    }
+    if (level && level !== 'All') {
+      filter.level = level;
+    }
+    if (type && type !== 'All') {
+      filter.type = type;
+    }
+    if (difficulty && difficulty !== 'All') {
+      filter.difficulty = difficulty;
+    }
+    if (search) {
+      const cleanSearch = sanitizeInput(search, 80);
+      filter.prompt = { $regex: cleanSearch, $options: 'i' };
+    }
+
+    const questions = await QuestionBank.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    return res.json({
+      count: questions.length,
+      questions,
+    });
+  } catch (error) {
+    logger.error('Get questions error', { error });
+    next(error);
+  }
+};
+
 module.exports = {
   startInterview,
   submitAnswer,
   getInterview,
   completeInterview,
   getUserInterviews,
+  getQuestions,
 };

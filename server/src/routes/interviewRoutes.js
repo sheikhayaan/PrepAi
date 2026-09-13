@@ -6,11 +6,14 @@ const {
   getInterview,
   completeInterview,
   getUserInterviews,
+  getQuestions,
 } = require('../controllers/interviewController');
 const { protect } = require('../middleware/authMiddleware');
 const { interviewStartLimiter, interviewAnswerLimiter } = require('../middleware/rateLimiter');
 
-router.use(protect); // All interview routes are protected
+router.get('/questions', getQuestions); // Question Bank browsing
+
+router.use(protect); // All session execution routes are protected
 
 router.post('/start', interviewStartLimiter, startInterview);
 router.get('/', getUserInterviews);

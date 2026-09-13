@@ -20,35 +20,45 @@ const turnSchema = new mongoose.Schema({
 });
 
 const finalScoreSchema = new mongoose.Schema({
-  clarity: {
-    type: Number,
-    min: 0,
-    max: 10,
-  },
-  correctness: {
-    type: Number,
-    min: 0,
-    max: 10,
-  },
-  structure: {
-    type: Number,
-    min: 0,
-    max: 10,
-  },
+  // Technical / DSA / System Design / Behavioral
+  clarity: { type: Number, min: 0, max: 10 },
+  correctness: { type: Number, min: 0, max: 10 },
+  structure: { type: Number, min: 0, max: 10 },
+  edgeCases: { type: Number, min: 0, max: 10 },
+
+  // HR Round
+  communication: { type: Number, min: 0, max: 10 },
+  culture_fit: { type: Number, min: 0, max: 10 },
+  honesty_consistency: { type: Number, min: 0, max: 10 },
+
+  // Case Study
+  structuring: { type: Number, min: 0, max: 10 },
+  hypothesis_driven_thinking: { type: Number, min: 0, max: 10 },
+  quantitative_reasoning: { type: Number, min: 0, max: 10 },
+
+  // Product Management
+  user_empathy: { type: Number, min: 0, max: 10 },
+  prioritization: { type: Number, min: 0, max: 10 },
+  metrics_thinking: { type: Number, min: 0, max: 10 },
+
+  // Sales Pitch
+  persuasiveness: { type: Number, min: 0, max: 10 },
+  objection_handling: { type: Number, min: 0, max: 10 },
+
+  // Managerial
+  conflict_resolution: { type: Number, min: 0, max: 10 },
+  delegation_reasoning: { type: Number, min: 0, max: 10 },
+  leadership_judgment: { type: Number, min: 0, max: 10 },
+
+  // Common Meta Evaluation
   overall: {
     type: Number,
     min: 0,
     max: 10,
   },
-  edgeCases: {
-    type: Number,
-    min: 0,
-    max: 10,
-    default: 8,
-  },
   seniorityFit: {
     type: String,
-    default: 'Senior Engineer (L5)',
+    default: 'Senior Level (L5)',
   },
   percentile: {
     type: Number,
@@ -67,7 +77,7 @@ const finalScoreSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-}, { _id: false });
+}, { _id: false, strict: false });
 
 const interviewSessionSchema = new mongoose.Schema({
   userId: {
@@ -77,7 +87,16 @@ const interviewSessionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['dsa', 'system_design', 'behavioral'],
+    enum: [
+      'dsa',
+      'system_design',
+      'behavioral',
+      'hr_round',
+      'case_study',
+      'product_management',
+      'sales_pitch',
+      'managerial',
+    ],
     required: true,
   },
   companyTier: {
@@ -91,12 +110,18 @@ const interviewSessionSchema = new mongoose.Schema({
   },
   seniorityLevel: {
     type: String,
-    enum: ['L3/L4 (Junior/Mid)', 'L5 (Senior)', 'L6+ (Staff/Principal)'],
     default: 'L5 (Senior)',
   },
   targetPackage: {
     type: String,
     default: '$250k - $380k',
+  },
+  customConfig: {
+    role: { type: String, trim: true },
+    targetCompany: { type: String, trim: true },
+    region: { type: String, enum: ['india', 'us'] },
+    targetSalary: { type: Number },
+    currency: { type: String, enum: ['INR', 'USD'] },
   },
   status: {
     type: String,
@@ -120,10 +145,18 @@ const interviewSessionSchema = new mongoose.Schema({
   startedAt: {
     type: Date,
     default: Date.now,
+    index: true,
   },
   completedAt: {
     type: Date,
   },
 });
 
+// High-concurrency compound indexes for admin dashboards and user analytics
+interviewSessionSchema.index({ userId: 1, startedAt: -1 });
+interviewSessionSchema.index({ status: 1, startedAt: -1 });
+interviewSessionSchema.index({ companyTier: 1, seniorityLevel: 1 });
+interviewSessionSchema.index({ 'finalScore.overall': -1 });
+
 module.exports = mongoose.model('InterviewSession', interviewSessionSchema);
+

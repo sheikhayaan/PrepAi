@@ -42,6 +42,19 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  googleAuth: async (credential, profile) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await api.post('/auth/google', { credential, profile });
+      set({ user: res.data.user, loading: false, error: null });
+      return { success: true };
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Google authentication failed. Please try again.';
+      set({ loading: false, error: errorMsg });
+      return { success: false, error: errorMsg };
+    }
+  },
+
   logout: async () => {
     try {
       await api.post('/auth/logout');

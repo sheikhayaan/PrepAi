@@ -28,8 +28,11 @@ const PROMPT_INJECTION_PATTERNS = [
  */
 function sanitizeInput(text, maxLength = 3000) {
   if (typeof text !== 'string') return '';
+  // Strip script tags and HTML tags
+  let clean = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  clean = clean.replace(/<[^>]+>/g, '');
   // Strip control characters (except newline, tab, carriage return)
-  let clean = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   // Strip token delimiters & pseudo-tags
   clean = clean.replace(/<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>/gi, '');
   clean = clean.trim();

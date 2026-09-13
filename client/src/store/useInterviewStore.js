@@ -24,6 +24,7 @@ export const useInterviewStore = create((set, get) => ({
         targetCompany: options.targetCompany || 'Google / Meta / FAANG',
         seniorityLevel: options.seniorityLevel || 'L5 (Senior)',
         targetPackage: options.targetPackage || '$250k - $380k',
+        customConfig: options.customConfig || undefined,
       });
       set({ session: res.data.session, loading: false });
       get().startTimer();

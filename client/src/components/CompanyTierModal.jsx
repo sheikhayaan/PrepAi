@@ -193,17 +193,22 @@ export default function CompanyTierModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* 3. Technical Track Selection */}
+          {/* 3. Track Selection */}
           <div>
             <label className="text-xs font-semibold text-white mb-2 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-accent" />
-              4. Technical Track
+              4. Interview Track
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-44 overflow-y-auto pr-1">
               {[
-                { id: 'system_design', name: 'System Design', icon: Server, desc: 'High-throughput distributed systems' },
-                { id: 'dsa', name: 'DSA & Algorithms', icon: Cpu, desc: 'Coding, complexity & edge cases' },
-                { id: 'behavioral', name: 'Behavioral & Leadership', icon: Users, desc: 'STAR stories & bar-raiser ownership' },
+                { id: 'system_design', name: 'System Design', icon: Server, desc: 'Architecture & distributed scaling' },
+                { id: 'dsa', name: 'DSA & Coding', icon: Cpu, desc: 'Algorithms, complexity & edge cases' },
+                { id: 'behavioral', name: 'Behavioral', icon: Users, desc: 'STAR stories & bar-raiser ownership' },
+                { id: 'hr_round', name: 'HR / Culture', icon: ShieldCheck, desc: 'Culture fit, alignment & ethics' },
+                { id: 'case_study', name: 'Case Study', icon: Sparkles, desc: 'Hypothesis, structuring & math' },
+                { id: 'product_management', name: 'Product (PM)', icon: Award, desc: 'User empathy & prioritization' },
+                { id: 'sales_pitch', name: 'Sales Pitch', icon: DollarSign, desc: 'Objection handling & persuasion' },
+                { id: 'managerial', name: 'Managerial', icon: Building2, desc: 'Conflict, delegation & judgment' },
               ].map((track) => {
                 const Icon = track.icon;
                 const isSelected = selectedType === track.id;
@@ -211,17 +216,17 @@ export default function CompanyTierModal({ isOpen, onClose }) {
                   <button
                     key={track.id}
                     onClick={() => setSelectedType(track.id)}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-accent/20 border-accent text-white shadow-[0_0_15px_rgba(91,140,255,0.3)]'
                         : 'bg-surface/60 border-hairline text-text-secondary hover:text-white hover:bg-surface-hover'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-4 h-4 text-accent" />
-                      <span className="text-xs font-bold text-white">{track.name}</span>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Icon className="w-3.5 h-3.5 text-accent shrink-0" />
+                      <span className="text-xs font-bold text-white truncate">{track.name}</span>
                     </div>
-                    <p className="text-[10px] text-text-muted leading-relaxed">{track.desc}</p>
+                    <p className="text-[10px] text-text-muted leading-tight line-clamp-2">{track.desc}</p>
                   </button>
                 );
               })}

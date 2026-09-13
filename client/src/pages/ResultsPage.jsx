@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInterviewStore } from '../store/useInterviewStore';
 import AuroraBackground from '../components/AuroraBackground';
+import RatingModal from '../components/RatingModal';
 import {
   Sparkles,
   ArrowRight,
@@ -15,6 +16,7 @@ import {
   Layers,
   ShieldCheck,
   Zap,
+  Star,
 } from 'lucide-react';
 
 export default function ResultsPage() {
@@ -23,6 +25,8 @@ export default function ResultsPage() {
   const { session, loadInterview } = useInterviewStore();
   const [animatedScore, setAnimatedScore] = useState(0);
   const [activeTab, setActiveTab] = useState('evaluation'); // 'evaluation' | 'actionPlan' | 'transcript'
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -31,35 +35,27 @@ export default function ResultsPage() {
   }, [id]);
 
   const finalScore = session?.finalScore || {
-    clarity: 8.8,
-    correctness: 8.4,
-    structure: 8.6,
-    edgeCases: 8.2,
-    overall: 8.5,
-    percentile: 92,
-    seniorityFit: session?.seniorityLevel || 'L5 (Senior Software Engineer)',
-    strongPoints: [
-      'Proactively identified memory bottlenecks and justified O(n) space-time trade-offs.',
-      'Demonstrated clear architectural decomposition and cache-aside eviction strategy.',
-      'Calibrated response structure cleanly to FAANG high-concurrency benchmarks.',
-    ],
-    weakPoints: [
-      'Did not explicitly quantify database write amplification and replication lag boundaries.',
-      'Could dive deeper into distributed transaction failure rollback semantics.',
-    ],
-    actionPlan: [
-      'Day 1-2: Deep dive into distributed consensus protocols (Raft/Paxos) and write amplification.',
-      'Day 3-4: Practice 5 hard LeetCode problems focusing on sliding window + monotonically increasing deques.',
-      'Day 5-6: Mock 2 System Design sessions on real-time event streaming and CDC (Change Data Capture).',
-      'Day 7: Review STAR method behavioural stories focusing on cross-team conflict resolution.',
-    ],
-    feedback: `Outstanding engineering rigor demonstrated for ${session?.targetCompany || 'FAANG'} (${session?.seniorityLevel || 'L5 Senior'}). Structured communication, solid edge-case consideration, and clear trade-off articulation. Fixing database replication lag edge cases will solidify your offer at the target band (${session?.targetPackage || '$250k - $380k'}).`,
+    clarity: 0,
+    correctness: 0,
+    structure: 0,
+    edgeCases: 0,
+    overall: 0,
+    percentile: 0,
+    seniorityFit: session?.seniorityLevel || 'Needs Preparation',
+    strongPoints: ['Session completed.'],
+    weakPoints: ['Please answer the interview questions to receive a diagnostic evaluation.'],
+    actionPlan: ['Complete a full practice session with spoken or written answers.'],
+    feedback: 'Evaluation pending or no answers provided for this session.',
   };
 
-  const targetScore = finalScore.overall || 8.5;
+  const targetScore = finalScore.overall !== undefined ? finalScore.overall : 0;
 
   // Animated Count-Up
   useEffect(() => {
+    if (targetScore === 0) {
+      setAnimatedScore(0);
+      return;
+    }
     let start = 0;
     const duration = 680;
     const steps = 30;
@@ -142,10 +138,10 @@ export default function ResultsPage() {
                 PERCENTILE RANKING
               </span>
               <p className="text-3xl font-extrabold text-white mt-1">
-                Top {100 - (finalScore.percentile || 92)}%
+                Top {100 - (finalScore.percentile ?? 0)}%
               </p>
               <p className="text-[10px] text-text-secondary mt-1">
-                Ahead of {finalScore.percentile || 92}% of candidates targeting this band
+                Ahead of {finalScore.percentile ?? 0}% of candidates targeting this band
               </p>
             </div>
 
@@ -211,27 +207,95 @@ export default function ResultsPage() {
                 </p>
               </div>
 
-              {/* 4 Dimension Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Clarity & Communication', val: finalScore.clarity || 8.8 },
-                  { label: 'Technical Correctness', val: finalScore.correctness || 8.4 },
-                  { label: 'Architecture Structure', val: finalScore.structure || 8.6 },
-                  { label: 'Edge Cases & Recovery', val: finalScore.edgeCases || 8.2 },
-                ].map((m, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-surface/60 border border-hairline">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-text-muted text-[10px]">{m.label}</span>
-                      <span className="text-white font-bold text-xs">{m.val}/10</span>
+              {/* Dynamic Dimension Metrics (Per-Track Specialized Rubric) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {(() => {
+                  const labelMap = {
+                    clarity: 'Clarity & Communication',
+                    correctness: 'Technical Correctness',
+                    structure: 'Architecture & Modularity',
+                    edgeCases: 'Edge Cases & Bounds',
+                    communication: 'Communication & Articulation',
+                    culture_fit: 'Culture & Value Alignment',
+                    honesty_consistency: 'Honesty & Consistency',
+                    structuring: 'MECE Framework & Structuring',
+                    hypothesis_driven_thinking: 'Hypothesis-Driven Thinking',
+                    quantitative_reasoning: 'Quantitative & Economic Rigor',
+                    user_empathy: 'User Empathy & Persona Insight',
+                    prioritization: 'RICE Prioritization & Scoping',
+                    metrics_thinking: 'North Star & Metrics Thinking',
+                    persuasiveness: 'Persuasiveness & Storytelling',
+                    objection_handling: 'Objection Handling & Rebuttal',
+                    conflict_resolution: 'Conflict Resolution & Diplomacy',
+                    delegation_reasoning: 'Delegation & Bandwidth Scaling',
+                    leadership_judgment: 'Leadership Judgment under Pressure',
+                  };
+
+                  const type = session?.type || 'dsa';
+                  const explicitKeys = Object.keys(finalScore || {}).filter(
+                    (k) => typeof finalScore[k] === 'number' && !['overall', 'percentile'].includes(k) && labelMap[k]
+                  );
+
+                  let cards = [];
+                  if (explicitKeys.length > 0) {
+                    cards = explicitKeys.map((k) => ({
+                      label: labelMap[k] || k,
+                      val: finalScore[k] ?? 0,
+                    }));
+                  } else if (type === 'hr_round') {
+                    cards = [
+                      { label: labelMap.communication, val: finalScore?.communication ?? 0 },
+                      { label: labelMap.culture_fit, val: finalScore?.culture_fit ?? 0 },
+                      { label: labelMap.honesty_consistency, val: finalScore?.honesty_consistency ?? 0 },
+                    ];
+                  } else if (type === 'case_study') {
+                    cards = [
+                      { label: labelMap.structuring, val: finalScore?.structuring ?? 0 },
+                      { label: labelMap.hypothesis_driven_thinking, val: finalScore?.hypothesis_driven_thinking ?? 0 },
+                      { label: labelMap.quantitative_reasoning, val: finalScore?.quantitative_reasoning ?? 0 },
+                    ];
+                  } else if (type === 'product_management') {
+                    cards = [
+                      { label: labelMap.user_empathy, val: finalScore?.user_empathy ?? 0 },
+                      { label: labelMap.prioritization, val: finalScore?.prioritization ?? 0 },
+                      { label: labelMap.metrics_thinking, val: finalScore?.metrics_thinking ?? 0 },
+                    ];
+                  } else if (type === 'sales_pitch') {
+                    cards = [
+                      { label: labelMap.persuasiveness, val: finalScore?.persuasiveness ?? 0 },
+                      { label: labelMap.objection_handling, val: finalScore?.objection_handling ?? 0 },
+                      { label: labelMap.clarity, val: finalScore?.clarity ?? 0 },
+                    ];
+                  } else if (type === 'managerial') {
+                    cards = [
+                      { label: labelMap.conflict_resolution, val: finalScore?.conflict_resolution ?? 0 },
+                      { label: labelMap.delegation_reasoning, val: finalScore?.delegation_reasoning ?? 0 },
+                      { label: labelMap.leadership_judgment, val: finalScore?.leadership_judgment ?? 0 },
+                    ];
+                  } else {
+                    cards = [
+                      { label: labelMap.clarity, val: finalScore?.clarity ?? 0 },
+                      { label: labelMap.correctness, val: finalScore?.correctness ?? 0 },
+                      { label: labelMap.structure, val: finalScore?.structure ?? 0 },
+                      { label: labelMap.edgeCases, val: finalScore?.edgeCases ?? 0 },
+                    ];
+                  }
+
+                  return cards.map((m, idx) => (
+                    <div key={idx} className="p-3.5 rounded-xl bg-surface/60 border border-hairline hover:border-accent/30 transition-all shadow-sm">
+                      <div className="flex justify-between items-start text-xs mb-1.5 gap-2">
+                        <span className="text-text-muted text-[10px] font-medium leading-snug">{m.label}</span>
+                        <span className="text-white font-bold text-xs shrink-0">{m.val}/10</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-hover rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-accent rounded-full shadow-[0_0_6px_rgba(91,140,255,0.7)] transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(0, (m.val / 10) * 100))}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-surface-hover rounded-full">
-                      <div
-                        className="h-full bg-accent rounded-full shadow-[0_0_6px_rgba(91,140,255,0.7)]"
-                        style={{ width: `${(m.val / 10) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
 
               {/* Concrete Strong & Weak Points Columns */}
@@ -310,7 +374,28 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* Action CTAs */}
+          {/* Rating Prompt & Action CTAs */}
+          <div className="p-4 rounded-2xl bg-accent/10 border border-accent/25 flex flex-col sm:flex-row items-center justify-between gap-3 mt-6">
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                <Star className="w-5 h-5 fill-accent/40" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">How accurate was this AI interview?</p>
+                <p className="text-[11px] text-text-secondary">
+                  {hasRated ? 'Thank you! Your rating has been logged.' : 'Rate questions, AI voice realism & rubric grading accuracy.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRatingModal(true)}
+              className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-accent/20 cursor-pointer shrink-0"
+            >
+              <Star className="w-3.5 h-3.5 fill-current" />
+              {hasRated ? 'Update Rating' : 'Leave Rating & Review'}
+            </button>
+          </div>
+
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-6 border-t border-hairline mt-6">
             <Link
               to="/dashboard"
@@ -330,6 +415,15 @@ export default function ResultsPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Feedback & Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        sessionId={id}
+        featureUsed="faang_mock_interview"
+        onSubmitted={() => setHasRated(true)}
+      />
     </div>
   );
 }

@@ -35,10 +35,20 @@
 
 ## 🌟 Key Highlights & Innovations
 
-- **FAANG & Seniority Calibration Wizard**: Dynamically calibrates interview questions, depth, and hiring committee evaluation rubrics across **4 Tiers** (*FAANG*, *Tier-1 Unicorns*, *Tier-2 Tech*, *High-Growth Startups*), **4 Seniority Levels** (*L3 Junior* to *L6+ Principal/Staff*), and target compensation bands (\$150k to \$750k+).
+- **8 Specialized Interview Tracks & Dynamic Rubrics**: Comprehensive coverage across both technical and non-technical domains with dedicated, non-leaking evaluation rubrics:
+  - **DSA & Algorithms**: Clarity, Correctness, Modularity, Edge Cases
+  - **System Design**: High-throughput architecture, latency SLOs, distributed trade-offs
+  - **Behavioral & Leadership**: STAR methodology, bar-raiser competencies & ownership
+  - **HR & Culture Fit**: Communication, culture/mission alignment, career consistency
+  - **Consulting Case Study**: MECE framework structuring, hypothesis testing, quantitative reasoning
+  - **Product Management (PM)**: User empathy, prioritization frameworks (RICE), metrics thinking
+  - **Sales Pitch & Revenue**: Persuasiveness, objection handling & negotiation, pitch clarity
+  - **Engineering Management**: Conflict resolution, delegation reasoning, leadership judgment
+- **Custom Interview Builder (`/custom-interview`)**: Bespoke interview creator allowing candidates to define target roles, company context, and native regional market calibration (India 🇮🇳 `₹ LPA` vs US 🇺🇸 `$ /yr`).
+- **Company-Wise & Level-Wise Problem Bank (`/questions`)**: Filter 40+ original problems by target company (*Google*, *Meta*, *Amazon*, *Stripe*, *Microsoft*, *Uber*) and seniority level (*L3* through *L6+*) with instant 1-click simulation launch.
 - **Intelligent Intent Recognition**: Distinguishes greetings (*"hello"*), hints, requests for clarification, and non-technical replies without hallucinating false praise.
 - **Adaptive Multi-Turn SSE Streaming**: Delivers token-by-token follow-ups probing algorithmic complexities, concurrency hazards, and architectural trade-offs.
-- **Discriminative 4-Tier Scoring Rubric**: Produces candid hiring bar raiser evaluations with numerical clarity, correctness, structure, edge case scores, percentile ranks, and customized **7-Day Action Plan Sprints**.
+- **Discriminative Scoring Rubric**: Produces candid hiring bar raiser evaluations with numerical clarity, percentile ranks, and customized **7-Day Action Plan Sprints**.
 - **Interactive Full-Screen Studio**: Features a responsive 3D Liquid Orb visualizer, speech-to-text voice recognition, text-to-speech voice synthesis, live code execution whiteboard, and real-time session telemetry.
 
 ---
@@ -49,6 +59,8 @@
 flowchart TD
     subgraph Client ["Frontend (React 18 + Vite + Tailwind + Zustand)"]
         UI["Landing & Calibration Wizard"]
+        CustomBuilder["Custom Interview Builder (/custom-interview)"]
+        QBank["Question Bank Explorer (/questions)"]
         Room["Full-Screen Interview Workspace (100dvh)"]
         Orb["3D Fluid AI Orb (WebGL/Canvas)"]
         TTS["Speech-to-Text & Web Speech TTS"]
@@ -61,6 +73,7 @@ flowchart TD
         RateLimit["Rate Limiting Middleware (rateLimiter.js)"]
         Cache["In-Memory LRU/TTL Question Cache (questionCache.js)"]
         SSE["SSE Adaptive Streaming Engine (anthropicClient.js)"]
+        DynamicRubric["Dynamic Rubric Schema Engine"]
         AuthCtrl["Auth Controller (JWT in httpOnly Cookies)"]
         Queue["Async Scoring Job Queue (BullMQ / Redis)"]
         Logger["Structured Logger & Redaction (logger.js)"]
@@ -68,16 +81,18 @@ flowchart TD
 
     subgraph External ["Data & Cloud AI Layer"]
         Claude["Anthropic Claude 3.5 Sonnet API"]
-        Mongo[("MongoDB Atlas / Local Mongo")]
+        Mongo[("MongoDB Atlas / Local Mongo (8 Tracks + Tag Indexes)")]
         RedisDB[("Redis Cache & BullMQ Store")]
     end
 
     UI --> RateLimit --> AuthCtrl --> Mongo
+    CustomBuilder --> Sec --> SSE
+    QBank --> Mongo
     Room --> Sec --> SSE
     SSE --> Cache
     Cache -. Cache Miss .-> Claude
     Room --> Queue --> RedisDB
-    Queue --> Claude
+    Queue --> DynamicRubric --> Claude
     Mongo --> Telemetry
 ```
 
@@ -90,13 +105,21 @@ flowchart TD
 - **Voice-Enabled Interface**: Full hands-free capability with Web Speech API transcription and voice synthesis.
 - **Live Whiteboard Sandbox**: In-browser code runner allowing candidates to implement and test algorithms in real time.
 - **Live Telemetry & Diagnostics**: Real-time evaluation progress, turn counting, pacing indicators, and Bar Raiser hints.
-- **Mobile Touch Responsive**: Optimized touch navigation bar and `100dvh` layout preventing mobile keyboard clipping.
 
-### 📊 2. Deep Diagnostic Evaluation (`ResultsPage.jsx`)
-- Multi-dimensional scoring across **Clarity**, **Correctness**, **Modularity/Architecture**, and **Edge Cases** (0–10 scale).
+### 🛠️ 2. Custom Interview Builder (`CustomInterviewSetup.jsx`)
+- Freeform **Target Role** and **Target Company** customization.
+- **Regional Market Toggle**: India 🇮🇳 (benchmarked in `₹ LPA`) vs US 🇺🇸 (benchmarked in `$ /yr`).
+- Seamless prompt injection and XSS defense with input sanitization.
+
+### 📚 3. Company & Level Question Bank (`QuestionBankExplorer.jsx`)
+- Indexed queries filtering by Company Tag (`Google`, `Meta`, `Amazon`, `Stripe`), Seniority Level (`L3`, `L4`, `L5`, `L6+`), Difficulty, and Track Type.
+- One-click **"Practice This"** instant interview launcher.
+
+### 📊 4. Deep Diagnostic Evaluation (`ResultsPage.jsx`)
+- Specialized dynamic rubric dimension cards adapting to the active track (e.g. *MECE Structuring* for Case Studies, *User Empathy* for PM, *Objection Handling* for Sales).
 - **Percentile Rank** calibrated to the specific company tier and level.
 - Concrete **Strengths** and **Weaknesses** breakdown.
-- **7-Day Sprint Action Plan** with targeted day-by-day LeetCode and System Design focus areas.
+- **7-Day Sprint Action Plan** with targeted day-by-day practice recommendations.
 
 ### 📈 3. Glassmorphic Analytics Dashboard (`DashboardPage.jsx`)
 - Aggregated metrics powered by native MongoDB aggregation pipelines.
@@ -221,11 +244,12 @@ node server/test-adversarial-and-resilience.js
 - `GET /api/auth/me` — Retrieve authenticated user profile *(Protected)*.
 
 ### Interviews
-- `POST /api/interviews/start` — Start session with company tier, seniority & package target *(Rate Limited)*.
+- `POST /api/interviews/start` — Start session with company tier, seniority & package target, or `customConfig` (role, targetCompany, region, targetSalary) *(Rate Limited)*.
 - `POST /api/interviews/:id/answer` — Submit answer and receive SSE stream *(Rate Limited)*.
 - `POST /api/interviews/:id/complete` — Conclude interview and enqueue background scoring job.
-- `GET /api/interviews/:id` — Fetch session transcript and evaluation scores.
+- `GET /api/interviews/:id` — Fetch session transcript and dynamic rubric evaluation scores.
 - `GET /api/interviews` — Fetch user interview history.
+- `GET /api/interviews/questions` — Filter question bank by `company`, `level`, `type`, `difficulty`, and regex `search`.
 
 ### Analytics
 - `GET /api/analytics` — Fetch aggregated mastery, hours, and weekly performance trends.
