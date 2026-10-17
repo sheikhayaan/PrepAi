@@ -1,294 +1,134 @@
-# 🚀 PrepAI — Next-Generation AI Technical Interview Platform
+# PrepAI
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 18" />
-  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Express.js-404D59?style=for-the-badge&logo=express&logoColor=white" alt="Express.js" />
-  <img src="https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
-  <img src="https://img.shields.io/badge/Anthropic_Claude_3.5_Sonnet-D97706?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude 3.5 Sonnet" />
-  <img src="https://img.shields.io/badge/BullMQ_%26_Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis & BullMQ" />
-</p>
+**AI mock interviews across eight tracks, graded against per-track rubrics — with the grading done off the request path.**
 
-<p align="center">
-  <strong>An intelligent, full-stack FAANG & Tier-1 mock interview platform powered by Claude 3.5 Sonnet, real-time Server-Sent Events (SSE), interactive 3D WebGL/Canvas fluid audio visualizers, and hiring committee diagnostic scoring.</strong>
-</p>
+A candidate starts a session, answers over a streaming connection, and gets a scored
+debrief: per-dimension scores, an overall band, a percentile, and a seven-day plan. The
+scoring is a queued job, so a slow model never holds an interview connection open.
+
+`React 18` `Vite` `Tailwind` `Node` `Express` `MongoDB` `BullMQ` `Redis` `Claude`
+
+> No hosted demo — every session costs provider tokens. The repo ships the test scripts;
+> run them against your own key.
 
 ---
 
-## 📖 Table of Contents
-- [🌟 Key Highlights & Innovations](#-key-highlights--innovations)
-- [🏗️ System Architecture](#️-system-architecture)
-- [✨ Core Features](#-core-features)
-- [🛡️ Production Hardening & Security](#️-production-hardening--security)
-- [💰 Token Budgeting & Cost Control](#-token-budgeting--cost-control)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🚀 Quick Start & Installation](#-quick-start--installation)
-- [⚙️ Environment Configuration](#️-environment-configuration)
-- [🧪 Automated Test Suites](#-automated-test-suites)
-- [📡 API Documentation](#-api-documentation)
-- [📁 Codebase Structure](#-codebase-structure)
-- [👤 Author](#-author)
+## Why this exists
 
----
+Adaptive interview scoring is slow work: a whole session has to be read, judged against a
+rubric, and turned into feedback. Doing that inside the HTTP request is how a live
+interview ends in a gateway timeout. PrepAI separates the conversation (fast, streaming)
+from the evaluation (slow, queued, retryable) and treats them as two different problems.
 
-## 🌟 Key Highlights & Innovations
-
-- **8 Specialized Interview Tracks & Dynamic Rubrics**: Comprehensive coverage across both technical and non-technical domains with dedicated, non-leaking evaluation rubrics:
-  - **DSA & Algorithms**: Clarity, Correctness, Modularity, Edge Cases
-  - **System Design**: High-throughput architecture, latency SLOs, distributed trade-offs
-  - **Behavioral & Leadership**: STAR methodology, bar-raiser competencies & ownership
-  - **HR & Culture Fit**: Communication, culture/mission alignment, career consistency
-  - **Consulting Case Study**: MECE framework structuring, hypothesis testing, quantitative reasoning
-  - **Product Management (PM)**: User empathy, prioritization frameworks (RICE), metrics thinking
-  - **Sales Pitch & Revenue**: Persuasiveness, objection handling & negotiation, pitch clarity
-  - **Engineering Management**: Conflict resolution, delegation reasoning, leadership judgment
-- **Custom Interview Builder (`/custom-interview`)**: Bespoke interview creator allowing candidates to define target roles, company context, and native regional market calibration (India 🇮🇳 `₹ LPA` vs US 🇺🇸 `$ /yr`).
-- **Company-Wise & Level-Wise Problem Bank (`/questions`)**: Filter 40+ original problems by target company (*Google*, *Meta*, *Amazon*, *Stripe*, *Microsoft*, *Uber*) and seniority level (*L3* through *L6+*) with instant 1-click simulation launch.
-- **Intelligent Intent Recognition**: Distinguishes greetings (*"hello"*), hints, requests for clarification, and non-technical replies without hallucinating false praise.
-- **Adaptive Multi-Turn SSE Streaming**: Delivers token-by-token follow-ups probing algorithmic complexities, concurrency hazards, and architectural trade-offs.
-- **Discriminative Scoring Rubric**: Produces candid hiring bar raiser evaluations with numerical clarity, percentile ranks, and customized **7-Day Action Plan Sprints**.
-- **Interactive Full-Screen Studio**: Features a responsive 3D Liquid Orb visualizer, speech-to-text voice recognition, text-to-speech voice synthesis, live code execution whiteboard, and real-time session telemetry.
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 ```mermaid
-flowchart TD
-    subgraph Client ["Frontend (React 18 + Vite + Tailwind + Zustand)"]
-        UI["Landing & Calibration Wizard"]
-        CustomBuilder["Custom Interview Builder (/custom-interview)"]
-        QBank["Question Bank Explorer (/questions)"]
-        Room["Full-Screen Interview Workspace (100dvh)"]
-        Orb["3D Fluid AI Orb (WebGL/Canvas)"]
-        TTS["Speech-to-Text & Web Speech TTS"]
-        CodeSandbox["Code Whiteboard & JS Execution Engine"]
-        Telemetry["Live Calibration Feed & Pacing Monitor"]
-    end
+flowchart LR
+    C[React · Vite · Zustand] -->|POST /api/interviews/start| EX[Express API]
+    C <-->|SSE token stream| EX
+    EX -->|JWT + rate limits| MID[auth · limiter · sanitize]
+    MID --> MG[(MongoDB<br/>sessions · users · questions)]
+    EX -->|complete| Q[["BullMQ queue<br/>interview-scoring"]]
+    Q -->|3 attempts · backoff| W[Worker · concurrency 5]
+    W --> CL[Claude<br/>structured rubric]
 
-    subgraph Server ["Backend (Node.js + Express)"]
-        Sec["Security & Sanitization Guard (security.js)"]
-        RateLimit["Rate Limiting Middleware (rateLimiter.js)"]
-        Cache["In-Memory LRU/TTL Question Cache (questionCache.js)"]
-        SSE["SSE Adaptive Streaming Engine (anthropicClient.js)"]
-        DynamicRubric["Dynamic Rubric Schema Engine"]
-        AuthCtrl["Auth Controller (JWT in httpOnly Cookies)"]
-        Queue["Async Scoring Job Queue (BullMQ / Redis)"]
-        Logger["Structured Logger & Redaction (logger.js)"]
-    end
-
-    subgraph External ["Data & Cloud AI Layer"]
-        Claude["Anthropic Claude 3.5 Sonnet API"]
-        Mongo[("MongoDB Atlas / Local Mongo (8 Tracks + Tag Indexes)")]
-        RedisDB[("Redis Cache & BullMQ Store")]
-    end
-
-    UI --> RateLimit --> AuthCtrl --> Mongo
-    CustomBuilder --> Sec --> SSE
-    QBank --> Mongo
-    Room --> Sec --> SSE
-    SSE --> Cache
-    Cache -. Cache Miss .-> Claude
-    Room --> Queue --> RedisDB
-    Queue --> DynamicRubric --> Claude
-    Mongo --> Telemetry
+    EX -.->|Redis down| FB[setImmediate fallback<br/>same function, in-process]
+    FB --> CL
+    CACHE[["TTL/LRU question cache<br/>200 entries · 1 h"]] -.-> EX
 ```
 
----
+### Request path
 
-## ✨ Core Features
+1. `POST /api/interviews/start` creates a session document and asks the model for an
+   opening question — served from a cache when the same configuration was seen before.
+2. `POST /api/interviews/:id/answer` streams the adaptive follow-up token-by-token over
+   SSE (`text/event-stream`, `chunk` → `done`), so the candidate sees thinking, not a
+   spinner.
+3. `POST /api/interviews/:id/complete` enqueues `interview-scoring` with the session id
+   and returns immediately.
+4. The worker loads the session, scores it against the track's rubric with a structured
+   tool call, and writes `finalScore`, `completedAt` and `status: completed` back onto the
+   same document.
 
-### 🎙️ 1. Active Interview Studio (`InterviewPage.jsx`)
-- **3D Liquid AI Orb**: 48-point fluid mesh shader responding dynamically to microphone input volume and AI voice states.
-- **Voice-Enabled Interface**: Full hands-free capability with Web Speech API transcription and voice synthesis.
-- **Live Whiteboard Sandbox**: In-browser code runner allowing candidates to implement and test algorithms in real time.
-- **Live Telemetry & Diagnostics**: Real-time evaluation progress, turn counting, pacing indicators, and Bar Raiser hints.
+## Design decisions
 
-### 🛠️ 2. Custom Interview Builder (`CustomInterviewSetup.jsx`)
-- Freeform **Target Role** and **Target Company** customization.
-- **Regional Market Toggle**: India 🇮🇳 (benchmarked in `₹ LPA`) vs US 🇺🇸 (benchmarked in `$ /yr`).
-- Seamless prompt injection and XSS defense with input sanitization.
+1. **Scoring is a job, not request work.** `POST /complete` returns as soon as the job is
+   accepted; three attempts with exponential backoff (2 s) absorb a provider hiccup that
+   would otherwise be a lost interview.
+2. **Redis is optional, not assumed.** `addScoringJob()` falls back to `setImmediate` with
+   the *same* `processScoringJob` function when the broker is unreachable, so local
+   development needs no infrastructure while production still gets retries and a
+   concurrency cap of 5. One code path, two durability levels — and the degradation is
+   logged, not silent.
+3. **Rubrics are per-track, not one global rubric.** DSA is scored on correctness and edge
+   cases; system design on trade-offs and fault tolerance; behavioural on STAR structure
+   and quantified ownership; consulting on MECE structuring and hypothesis-driven
+   reasoning. Each track carries a role description for the grader
+   (`Principal Algorithmist & Software Bar Raiser`, `Principal Distributed Systems
+   Architect`, …), so the same model behaves like different interviewers.
+4. **A cache in front of the model.** Opening questions repeat across users for the same
+   `sessionType:companyTier:targetCompany:seniorityLevel` tuple, so a TTL/LRU cache (200
+   entries, one hour, oldest-first eviction) removes a class of identical API calls
+   without changing behaviour.
+5. **Rate limits where money is spent.** Auth is capped at 20 requests / 15 min, session
+   start at 15 / 10 min, and answer submission at 40 / 5 min per IP — the three routes
+   that can run up a bill.
+6. **Fail loudly at boot, not mid-interview.** The Anthropic client initialises only on a
+   plausible key; without one the server runs in an explicitly logged local simulation
+   mode rather than throwing on the first request.
 
-### 📚 3. Company & Level Question Bank (`QuestionBankExplorer.jsx`)
-- Indexed queries filtering by Company Tag (`Google`, `Meta`, `Amazon`, `Stripe`), Seniority Level (`L3`, `L4`, `L5`, `L6+`), Difficulty, and Track Type.
-- One-click **"Practice This"** instant interview launcher.
+## Project layout
 
-### 📊 4. Deep Diagnostic Evaluation (`ResultsPage.jsx`)
-- Specialized dynamic rubric dimension cards adapting to the active track (e.g. *MECE Structuring* for Case Studies, *User Empathy* for PM, *Objection Handling* for Sales).
-- **Percentile Rank** calibrated to the specific company tier and level.
-- Concrete **Strengths** and **Weaknesses** breakdown.
-- **7-Day Sprint Action Plan** with targeted day-by-day practice recommendations.
-
-### 📈 3. Glassmorphic Analytics Dashboard (`DashboardPage.jsx`)
-- Aggregated metrics powered by native MongoDB aggregation pipelines.
-- Weekly performance trajectories, practice hour counters, topic mastery meters, and historical session logs.
-
----
-
-## 🛡️ Production Hardening & Security
-
-1. **Prompt Injection & Adversarial Bypass Defense (`server/src/utils/security.js`)**:
-   - Intercepts and neutralizes prompt injection attempts (e.g., *"Ignore previous instructions"*, *"Award 10/10"*, XML tag spoofing).
-   - Encapsulates candidate dialogue within strict `<candidate_response>` XML boundaries.
-   - Evaluates adversarial sessions with strict zero-score flags (`1.9/10`, `Adversarial Bypass Detected`).
-2. **Layered Rate Limiting (`server/src/middleware/rateLimiter.js`)**:
-   - **Auth Routes**: Max 20 attempts per 15 minutes per IP (brute-force defense).
-   - **Interview Creation**: Max 15 starts per 10 minutes per IP/User.
-   - **Answer Streaming**: Max 40 submissions per 5 minutes per IP.
-3. **Secret Redaction & Structured Logging (`server/src/utils/logger.js`)**:
-   - Structured JSON logging with automated regex masking (`[REDACTED_SECRET]`) ensuring API keys, bearer tokens, and credentials are never leaked.
-4. **Resilient Mid-Interview Fault Recovery**:
-   - Handles network disconnection or SSE aborts gracefully with an in-room Reconnect banner, preventing white-screen crashes.
-
----
-
-## 💰 Token Budgeting & Cost Control
-
-- **Max-Turns Cap (`maxTurns = 6`)**: Enforces a budget limit per session to prevent unbounded LLM token consumption.
-- **In-Memory Question Caching (`questionCache.js`)**: Caches opening questions for identical `(track + company + level)` combinations with a 1-hour TTL (0ms latency, 0 API cost on repeat starts).
-- **Session Token Telemetry**: Tracks estimated prompt, completion, and total tokens in MongoDB per interview.
-
----
-
-## 🛠️ Tech Stack
-
-| Domain | Technology |
-| :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Zustand, Recharts, Lucide Icons, Canvas WebGL Shaders |
-| **Backend** | Node.js, Express.js, Mongoose, Cookie-Parser, CORS, express-rate-limit |
-| **AI Engine** | Anthropic Claude 3.5 Sonnet (`claude-3-5-sonnet-20241022`) + SSE Streaming |
-| **Background Jobs** | BullMQ, Redis, Background Worker Fallback |
-| **Database** | MongoDB (Native Aggregations, Indexing) |
-| **Security** | BCrypt.js, JSON Web Tokens (httpOnly, SameSite=Lax Cookies), Input Sanitizers |
-
----
-
-## 🚀 Quick Start & Installation
-
-### Prerequisites
-- **Node.js** $\ge 18.0.0$
-- **MongoDB** running locally or a MongoDB Atlas URI
-- *(Optional)* **Redis** running locally (or uses automatic async worker fallback)
-- *(Optional)* **Anthropic API Key** (or runs seamlessly on the built-in local fallback engine)
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/sheikhayaan/prepai.git
-cd prepai
+```
+client/                 React + Vite: pages, stores, SSE consumer, visual components
+server/server.js        Express app: helmet, CORS allowlist, mongo-sanitize, routes
+server/src/routes       auth · interviews · analytics · admin · ratings
+server/src/jobs         scoringQueue (BullMQ + fallback) · scoringWorker
+server/src/services     anthropicClient (rubrics, structured tool call)
+server/src/models       User · InterviewSession · QuestionBank · Rating
+server/test-*.js        e2e · adversarial · production audit · verification
 ```
 
-### 2. Install Dependencies
-```bash
-# Install server dependencies
-npm --prefix server install
-
-# Install client dependencies
-npm --prefix client install
-```
-
-### 3. Configure Environment Variables
-Copy `.env.example` into `server/.env`:
-```bash
-# Server Environment (.env)
-PORT=5000
-CLIENT_URL=http://localhost:5173
-MONGO_URI=mongodb://127.0.0.1:27017/prepai
-JWT_SECRET=your_super_secret_jwt_key_2026
-REDIS_URL=redis://127.0.0.1:6379
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-```
-
-### 4. Seed the FAANG Question Bank
-```bash
-npm --prefix server run seed
-```
-
-### 5. Launch the Platform
-```bash
-# Terminal 1: Start Backend Server
-node server/server.js
-
-# Terminal 2: Start Frontend App
-npm --prefix client run dev
-```
-
-Open **[http://localhost:5173](http://localhost:5173)** in your browser!
-
----
-
-## 🧪 Automated Test Suites
-
-PrepAI includes complete end-to-end integration and security test suites:
+## Quick start
 
 ```bash
-# 1. Run Core E2E Integration Test (7 Tests)
-node server/test-e2e.js
+# API
+cd server
+npm install
+cp ../.env.example .env      # MONGO_URI, JWT_SECRET, ANTHROPIC_API_KEY, REDIS_URL, CLIENT_URL
+npm run dev                  # :5000  (npm run seed for the question bank)
 
-# 2. Run Production Security & Architecture Audit (11 Tests)
-node server/test-production-audit.js
-
-# 3. Run Live Adversarial Prompt Injection & Scoring Discrimination Tests (4 Tests)
-node server/test-adversarial-and-resilience.js
+# client
+cd ../client
+npm install
+npm run dev                  # :5173
 ```
 
----
+Redis and MongoDB are both optional to boot — Mongo is required for persistence, Redis
+only upgrades scoring from in-process to durable.
 
-## 📡 API Documentation
+## Tests
 
-### Authentication
-- `POST /api/auth/register` — Register new user and issue `httpOnly` cookie.
-- `POST /api/auth/login` — Authenticate user.
-- `POST /api/auth/logout` — Invalidate session cookie.
-- `GET /api/auth/me` — Retrieve authenticated user profile *(Protected)*.
-
-### Interviews
-- `POST /api/interviews/start` — Start session with company tier, seniority & package target, or `customConfig` (role, targetCompany, region, targetSalary) *(Rate Limited)*.
-- `POST /api/interviews/:id/answer` — Submit answer and receive SSE stream *(Rate Limited)*.
-- `POST /api/interviews/:id/complete` — Conclude interview and enqueue background scoring job.
-- `GET /api/interviews/:id` — Fetch session transcript and dynamic rubric evaluation scores.
-- `GET /api/interviews` — Fetch user interview history.
-- `GET /api/interviews/questions` — Filter question bank by `company`, `level`, `type`, `difficulty`, and regex `search`.
-
-### Analytics
-- `GET /api/analytics` — Fetch aggregated mastery, hours, and weekly performance trends.
-
----
-
-## 📁 Codebase Structure
-
-```
-├── client/                      # Frontend Application (React 18 + Vite)
-│   ├── src/
-│   │   ├── components/          # 3D AI Orb, Aurora Shader, Waveforms, Scrollytelling
-│   │   ├── pages/               # Landing, Dashboard, Interview Room, Results
-│   │   ├── store/               # Zustand Global State Stores
-│   │   └── api/                 # Axios Client & Interceptors
-├── server/                      # Backend API Server (Node.js + Express)
-│   ├── src/
-│   │   ├── config/              # MongoDB & Question Bank Seeders
-│   │   ├── controllers/         # Auth, Interview, Analytics Controllers
-│   │   ├── middleware/          # JWT Auth, Rate Limiter, Error Handler
-│   │   ├── models/              # User, InterviewSession, QuestionBank Schemas
-│   │   ├── services/            # Anthropic Claude 3.5 Sonnet Client & Streaming
-│   │   ├── jobs/                # BullMQ Queues & Scoring Workers
-│   │   └── utils/               # Structured Logger, Security & Question Cache
-│   ├── test-e2e.js              # Integration Test Suite
-│   ├── test-production-audit.js # Security & Architecture Audit
-│   └── test-adversarial-and-resilience.js # Adversarial Defense Tests
-└── README.md                    # Project Documentation
+```bash
+cd server
+node test-e2e.js
+node test-adversarial-and-resilience.js
+node test-production-audit.js
 ```
 
----
+These hit a running server and a database: they cover the full session lifecycle, hostile
+input, and resilience when the queue or provider is unavailable.
 
-## 👤 Author
+## Limits
 
-**Sheikh Ayaan**
-- GitHub: [@sheikhayaan](https://github.com/sheikhayaan)
+- **No hosted demo**, by design: a public link would spend someone's tokens.
+- **The rubric is only as good as one model.** There is no human calibration set and no
+  inter-rater agreement measurement; the scores should be read as structured feedback, not
+  as a hiring verdict.
+- **The cache is in-process.** Two API instances do not share it, and a restart clears it.
+- **Single-tenant**: one deployment, one Mongo, no per-organisation isolation.
 
----
+## Author
 
-<p align="center">
-  <sub>Built with ❤️ for engineers preparing to crack top-tier technical interviews.</sub>
-</p>
+**Mohd Ayaan** — [github.com/sheikhayaan](https://github.com/sheikhayaan) ·
+[LinkedIn](https://linkedin.com/in/mohd-ayaan-7731b4381)
