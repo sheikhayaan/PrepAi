@@ -96,9 +96,31 @@ const allowedOrigins = [
   ),
 ];
 
+// In development, local tools (auto-PR previews, Vite fallback ports) can
+// legitimately use any localhost port. Production stays strictly allowlisted.
+const isDevLocalOrigin = (origin) => {
+  if (config.nodeEnv === 'production') return false;
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return (
+      (protocol === 'http:' || protocol === 'https:') &&
+      ['localhost', '127.0.0.1', '::1'].includes(hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      // Same-origin, curl, and server-to-server requests have no Origin.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [

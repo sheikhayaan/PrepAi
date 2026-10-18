@@ -134,7 +134,7 @@ Minimum local values:
 ```dotenv
 MONGO_URI=mongodb://127.0.0.1:27017/prepai
 JWT_SECRET=local_dev_secret_at_least_32_characters_long
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=http://localhost:5200
 PORT=5000
 
 # Optional — leave blank to use the deterministic simulation
@@ -162,7 +162,7 @@ npm run dev
 
 Open:
 
-- Web: **http://localhost:5173**
+- Web: **http://localhost:5200** (if 5200 is busy, Vite auto-selects 5201/5202… and prints the URL)
 - API: **http://localhost:5000**
 - Health: **http://localhost:5000/api/health**
 - Readiness: **http://localhost:5000/health/ready**
@@ -406,7 +406,7 @@ All variables live in `server/.env` (see [`.env.example`](.env.example) and [`se
 | `MONGO_URI` | `mongodb://127.0.0.1:27017/prepai` | Required in production |
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Optional; set `REDIS_DISABLED=true` to force off |
 | `JWT_SECRET` | — | ≥ 32 chars in production |
-| `CLIENT_URL` | `http://localhost:5173` | Comma-separated allowlist |
+| `CLIENT_URL` | `http://localhost:5200` | Comma-separated allowlist |
 | `TRUST_PROXY_HOPS` | `1` | Set to LB hop count; `0` on bare metal |
 
 ### LLM & cost
