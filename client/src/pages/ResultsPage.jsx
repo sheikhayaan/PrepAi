@@ -22,16 +22,34 @@ import {
 export default function ResultsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { session, loadInterview } = useInterviewStore();
+  const { session, loadInterview, loading } = useInterviewStore();
   const [animatedScore, setAnimatedScore] = useState(0);
   const [activeTab, setActiveTab] = useState('evaluation'); // 'evaluation' | 'actionPlan' | 'transcript'
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      loadInterview(id);
-    }
+    let interval = null;
+    let attempts = 0;
+
+    const fetchSession = async () => {
+      if (!id) return;
+      const res = await loadInterview(id);
+      if ((!res.session?.finalScore || res.session?.finalScore?.overall === 0) && attempts < 10) {
+        attempts++;
+        setIsPolling(true);
+        interval = setTimeout(fetchSession, 1200);
+      } else {
+        setIsPolling(false);
+      }
+    };
+
+    fetchSession();
+
+    return () => {
+      if (interval) clearTimeout(interval);
+    };
   }, [id]);
 
   const finalScore = session?.finalScore || {
@@ -45,7 +63,7 @@ export default function ResultsPage() {
     strongPoints: ['Session completed.'],
     weakPoints: ['Please answer the interview questions to receive a diagnostic evaluation.'],
     actionPlan: ['Complete a full practice session with spoken or written answers.'],
-    feedback: 'Evaluation pending or no answers provided for this session.',
+    feedback: 'Calculating evaluation score...',
   };
 
   const targetScore = finalScore.overall !== undefined ? finalScore.overall : 0;

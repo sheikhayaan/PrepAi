@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import AIOrb from '../components/AIOrb';
 import AuroraBackground from '../components/AuroraBackground';
+import { LaserCollection } from '../shaders/laser/LaserCollection';
+import '../shaders/threeui.css';
 import Scrollytelling from '../components/Scrollytelling';
 import FlowchartAnimation from '../components/FlowchartAnimation';
 import TreeAnimation from '../components/TreeAnimation';
@@ -38,8 +40,19 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-bg text-text-primary overflow-hidden">
-      <AuroraBackground showHorizon={true} />
+    <div className="relative min-h-screen bg-[#030407] text-text-primary overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden shader-frame">
+        <LaserCollection
+          speed={1.00}
+          size={1.00}
+          length={1.00}
+          density={1.00}
+          opacity={1.00}
+          hue={0}
+          saturation={1.00}
+          brightness={1.00}
+        />
+      </div>
 
       {/* ========================================================================= */}
       {/* 1. HERO SECTION (Screenshot 1: media_1788673440307.png) */}
@@ -227,112 +240,109 @@ export default function LandingPage() {
       {/* ========================================================================= */}
       {/* 3. HOW IT WORKS SECTION (Screenshot 5: media_1788673440472.png) */}
       {/* ========================================================================= */}
-      <section id="how-it-works" className="relative z-10 pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section id="how-it-works" className="relative z-10 pt-20 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <span className="text-[11px] font-bold tracking-[0.25em] text-accent uppercase">
-            SIMPLE. POWERFUL. PERSONAL.
-          </span>
-          <h2 className="text-4xl sm:text-6xl font-normal tracking-tight text-white font-serif-heading">
-            How it works
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/30 text-[11px] font-bold tracking-[0.2em] text-accent uppercase shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+            <Sparkles className="w-3.5 h-3.5" />
+            HOW IT WORKS • 3-STEP PIPELINE
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+            From Practice to Offer Letter.
           </h2>
-          <p className="text-sm sm:text-base text-text-secondary leading-relaxed pt-2">
-            Go from unsure to interview-ready in three simple steps. <br />
-            A personalized experience, calibrated around you.
+          <p className="text-sm sm:text-base text-text-secondary leading-relaxed pt-1 max-w-lg mx-auto">
+            A personalized, adaptive simulation calibrated around FAANG hiring bars ($250k–$750k+).
           </p>
         </div>
 
-        {/* Dynamic Curved Luminous Bezier Connector & 3 Cards */}
-        <div className="relative mt-20">
-          <div className="absolute top-20 left-0 right-0 hidden md:block pointer-events-none">
-            <svg className="w-full h-32" viewBox="0 0 1000 120" fill="none" preserveAspectRatio="none">
-              <path
-                d="M 100 60 Q 280 10, 500 70 T 900 40"
-                stroke="url(#waveGlowMain)"
-                strokeWidth="2.5"
-                strokeDasharray="6 4"
-                className="animate-pulse"
-              />
-              <path
-                d="M 100 60 Q 280 10, 500 70 T 900 40"
-                stroke="#5B8CFF"
-                strokeWidth="1.5"
-                opacity="0.8"
-              />
-              <defs>
-                <linearGradient id="waveGlowMain" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.2" />
-                  <stop offset="50%" stopColor="#60A5FA" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.2" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
-            {/* Step 01 */}
-            <div className="flex flex-col items-start space-y-4">
-              <div className="relative">
-                <span className="text-7xl font-extrabold text-white/5 select-none absolute -top-8 -left-2 font-mono">
+        {/* 3 Step Cards Pipeline */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 relative z-10">
+          {/* Step 01 Card */}
+          <div className="group relative p-8 rounded-3xl bg-surface/70 border border-white/10 hover:border-accent/50 backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-[0_20px_50px_rgba(59,130,246,0.25)] flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-400/40 flex items-center justify-center text-accent shadow-[0_0_25px_rgba(59,130,246,0.35)] group-hover:scale-110 transition-transform">
+                  <UserCheck className="w-7 h-7" />
+                </div>
+                <span className="text-5xl font-extrabold text-white/10 group-hover:text-accent/30 font-mono transition-colors">
                   01
                 </span>
-                <div className="relative w-12 h-12 rounded-xl bg-surface/90 border border-accent/50 flex items-center justify-center text-accent shadow-[0_0_20px_rgba(91,140,255,0.4)]">
-                  <UserCheck className="w-6 h-6" />
-                </div>
               </div>
-              <h3 className="text-xl font-bold text-white">Tell us your goals</h3>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-                Choose your target company tier (FAANG / Unicorn), seniority level, and target package. We tailor everything to you.
-              </p>
-              <div className="pt-2 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-accent" />
-                <span className="text-[10px] font-bold tracking-[0.15em] text-text-muted uppercase">
-                  PERSONALIZED SETUP
-                </span>
+
+              <div>
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                  Calibrate Your Target
+                </h3>
+                <p className="text-xs sm:text-sm text-text-secondary leading-relaxed mt-2.5">
+                  Select your dream company tier (FAANG, Unicorn, Scale-up), engineering level (L4, L5 Senior, L6 Staff), and target compensation package.
+                </p>
               </div>
             </div>
 
-            {/* Step 02 */}
-            <div className="flex flex-col items-start space-y-4">
-              <div className="relative">
-                <span className="text-7xl font-extrabold text-white/5 select-none absolute -top-8 -left-2 font-mono">
+            <div className="pt-6 border-t border-white/5 mt-6 flex items-center justify-between">
+              <span className="text-[10px] font-mono font-semibold text-accent uppercase tracking-wider">
+                PERSONALIZED BENCHMARK
+              </span>
+              <span className="w-2 h-2 rounded-full bg-accent/60 group-hover:bg-accent animate-ping" />
+            </div>
+          </div>
+
+          {/* Step 02 Card */}
+          <div className="group relative p-8 rounded-3xl bg-surface/70 border border-accent/40 hover:border-accent backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1.5 shadow-2xl hover:shadow-[0_20px_50px_rgba(59,130,246,0.35)] flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/30 to-emerald-500/10 border border-blue-400/50 flex items-center justify-center text-blue-300 shadow-[0_0_25px_rgba(59,130,246,0.45)] group-hover:scale-110 transition-transform">
+                  <MessageSquareCode className="w-7 h-7" />
+                </div>
+                <span className="text-5xl font-extrabold text-white/10 group-hover:text-accent/30 font-mono transition-colors">
                   02
                 </span>
-                <div className="relative w-12 h-12 rounded-xl bg-surface/90 border border-accent/50 flex items-center justify-center text-accent shadow-[0_0_20px_rgba(91,140,255,0.4)]">
-                  <MessageSquareCode className="w-6 h-6" />
-                </div>
               </div>
-              <h3 className="text-xl font-bold text-white">Practice with AI</h3>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-                Get realistic, adaptive interview questions with instant voice audio responses, follow-up probes, and detailed explanations.
-              </p>
-              <div className="pt-2 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-accent" />
-                <span className="text-[10px] font-bold tracking-[0.15em] text-text-muted uppercase">
-                  REAL CONVERSATIONS
-                </span>
+
+              <div>
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                  Real Voice AI Simulation
+                </h3>
+                <p className="text-xs sm:text-sm text-text-secondary leading-relaxed mt-2.5">
+                  Engage in multi-turn voice dialogues with Claude 3.5 Sonnet. The AI probes edge cases, challenges trade-offs, and detects algorithmic brute-force gaps.
+                </p>
               </div>
             </div>
 
-            {/* Step 03 */}
-            <div className="flex flex-col items-start space-y-4">
-              <div className="relative">
-                <span className="text-7xl font-extrabold text-white/5 select-none absolute -top-8 -left-2 font-mono">
+            <div className="pt-6 border-t border-white/5 mt-6 flex items-center justify-between">
+              <span className="text-[10px] font-mono font-semibold text-emerald-400 uppercase tracking-wider">
+                VOICE & CODE SANDBOX
+              </span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Step 03 Card */}
+          <div className="group relative p-8 rounded-3xl bg-surface/70 border border-white/10 hover:border-accent/50 backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-[0_20px_50px_rgba(59,130,246,0.25)] flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-400/40 flex items-center justify-center text-indigo-300 shadow-[0_0_25px_rgba(99,102,241,0.35)] group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-7 h-7" />
+                </div>
+                <span className="text-5xl font-extrabold text-white/10 group-hover:text-accent/30 font-mono transition-colors">
                   03
                 </span>
-                <div className="relative w-12 h-12 rounded-xl bg-surface/90 border border-accent/50 flex items-center justify-center text-accent shadow-[0_0_20px_rgba(91,140,255,0.4)]">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
               </div>
-              <h3 className="text-xl font-bold text-white">Track your progress</h3>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-                See your concrete strong points, fix your diagnostic weak spots, and watch your confidence grow over time.
-              </p>
-              <div className="pt-2 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-accent" />
-                <span className="text-[10px] font-bold tracking-[0.15em] text-text-muted uppercase">
-                  MEASURABLE IMPROVEMENT
-                </span>
+
+              <div>
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                  Hiring Committee Scoring
+                </h3>
+                <p className="text-xs sm:text-sm text-text-secondary leading-relaxed mt-2.5">
+                  Receive an official Hiring Bar score (1.0 to 4.0), diagnostic scorecards for Communication, Complexity, and Architecture, plus line-by-line answer upgrades.
+                </p>
               </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/5 mt-6 flex items-center justify-between">
+              <span className="text-[10px] font-mono font-semibold text-indigo-400 uppercase tracking-wider">
+                COMPREHENSIVE TELEMETRY
+              </span>
+              <span className="w-2 h-2 rounded-full bg-indigo-400/80 group-hover:bg-indigo-400" />
             </div>
           </div>
         </div>
@@ -451,10 +461,12 @@ export default function LandingPage() {
       </div>
 
       {/* Target Company & Tier Setup Wizard Modal */}
-      <CompanyTierModal
-        isOpen={showTierModal}
-        onClose={() => setShowTierModal(false)}
-      />
+      {showTierModal && (
+        <CompanyTierModal
+          isOpen={showTierModal}
+          onClose={() => setShowTierModal(false)}
+        />
+      )}
     </div>
   );
 }

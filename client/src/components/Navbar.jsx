@@ -1,27 +1,91 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Bell, LogOut, Sparkles, ChevronDown, Shield, Database, Sliders } from 'lucide-react';
+import { AnimatedTopDock } from '../shaders/animated-top-dock/AnimatedTopDock';
+import CompanyTierModal from './CompanyTierModal';
+import '../shaders/threeui.css';
+import {
+  Sparkles,
+  Database,
+  Sliders,
+  Shield,
+} from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
 
   // Hidden during active interview screen per DESIGN.md Section 3 Layout rules
-  if (location.pathname.startsWith('/interview/')) {
+  if (location.pathname.match(/^\/interview\/[a-zA-Z0-9_-]+$/)) {
     return null;
   }
 
-  const navLinks = [
-    { name: 'Features', path: '/features' },
-    { name: 'Questions', path: '/questions', authRequired: true },
-    { name: 'Custom Mock', path: '/custom-interview', authRequired: true },
-    { name: 'Pricing', path: '/pricing' },
-    { name: 'Dashboard', path: '/dashboard', authRequired: true },
-    { name: 'Admin Portal', path: '/admin', authRequired: true, adminOnly: true },
+  const navItems = [
+    {
+      id: 'features',
+      label: 'Features',
+      path: '/features',
+      icon: <path d="M8 1.9 14.1 5v6L8 14.1 1.9 11V5z M1.9 5 8 8.1 14.1 5 M8 8.1v6" />,
+    },
+    {
+      id: 'how-it-works',
+      label: 'How It Works',
+      path: '/how-it-works',
+      icon: <><circle cx="8" cy="8" r="5.9" /><path d="M8 4.6V8l2.4 1.5" /></>,
+    },
+    {
+      id: 'questions',
+      label: 'Questions',
+      path: '/questions',
+      authRequired: true,
+      icon: <path d="M8 1.9 14.4 5.6 8 9.3 1.6 5.6z m2.6 8 5.4 3.1L13.4 8 M2.6 10.7 8 13.8l5.4-3.1" />,
+    },
+    {
+      id: 'custom-mock',
+      label: 'Custom Mock',
+      path: '/custom-interview',
+      authRequired: true,
+      icon: <path d="M3.4 2.4h5.4l3.8 3.8v7.4H3.4z M8.8 2.4v3.8h3.8 M5.9 9h4.2 M5.9 11.2h3" />,
+    },
+    {
+      id: 'pricing',
+      label: 'Pricing',
+      path: '/pricing',
+      icon: <><path d="M8.6 2.2H13v4.4l-6.6 6.6a1.2 1.2 0 0 1-1.7 0L2.2 10.5a1.2 1.2 0 0 1 0-1.7z" /><circle cx="10.6" cy="4.6" r=".9" /></>,
+    },
+    ...(user
+      ? [
+          {
+            id: 'dashboard',
+            label: 'Dashboard',
+            path: '/dashboard',
+            icon: <><circle cx="8" cy="8" r="5.9" /><path d="M8 4.6V8l2.4 1.5" /></>,
+          },
+        ]
+      : []),
+    ...(user?.role === 'admin'
+      ? [
+          {
+            id: 'admin',
+            label: 'Admin',
+            path: '/admin',
+            icon: <path d="M8 1.5l6 2.5v4.5c0 4-2.5 7-6 8.5-3.5-1.5-6-4.5-6-8.5v-4.5l6-2.5z" />,
+          },
+        ]
+      : []),
   ];
+
+  const activeNav = navItems.find((item) => item.path === location.pathname)?.id || '';
+
+  const handleItemSelect = (id) => {
+    const item = navItems.find((n) => n.id === id);
+    if (item?.path) {
+      navigate(item.path);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -29,152 +93,145 @@ export default function Navbar() {
     navigate('/');
   };
 
-  const getInitials = (name) => {
-    if (!name) return 'AI';
-    const parts = name.split(' ');
-    return parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase();
-  };
+  const brandElement = (
+    <a
+      className="atd-modern__brand cursor-pointer"
+      href="/"
+      onClick={(e) => {
+        e.preventDefault();
+        navigate('/');
+      }}
+    >
+      <span className="atd-modern__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="w-full h-full">
+          <rect width="24" height="24" rx="4.5" fill="#3B82F6" />
+          <path d="M12 3L2 19h7l3-6 3 6h7L12 3z" fill="#FFFFFF" />
+          <path d="M12 9l-3 6h6l-3-6z" fill="#93C5FD" />
+        </svg>
+      </span>
+      <span className="atd-modern__word font-bold tracking-tight">
+        Prep<span className="text-blue-400">AI</span>
+      </span>
+    </a>
+  );
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-bg/80 border-b border-hairline/80 transition-all duration-200">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.6)] group-hover:shadow-[0_0_22px_rgba(59,130,246,0.8)] transition-all">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white fill-current">
-              <path d="M12 3L2 19h7l3-6 3 6h7L12 3z" opacity="0.9" />
-              <path d="M12 9l-3 6h6l-3-6z" fill="#93C5FD" />
-            </svg>
-          </div>
-          <span className="font-semibold text-lg tracking-tight text-text-primary">
-            Prep<span className="text-accent">AI</span>
-          </span>
-        </Link>
-
-        {/* Navigation Destinations */}
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => {
-            if (link.authRequired && !user) return null;
-            if (link.adminOnly && user?.role !== 'admin') return null;
-            const isActive = location.pathname === link.path;
-
-            return (
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`relative py-1 text-sm font-medium transition-colors duration-120 ${
-                  isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {link.name}
-                {isActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent rounded-full shadow-[0_0_8px_rgba(91,140,255,0.8)]" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Right side controls */}
-        <div className="flex items-center gap-4">
-          {user ? (
-            <div className="flex items-center gap-4">
-              <button
-                className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-full transition-colors"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4" />
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2.5 p-1.5 rounded-full hover:bg-surface-hover border border-transparent hover:border-hairline transition-all cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/40 text-accent font-semibold text-xs flex items-center justify-center">
-                    {getInitials(user.name)}
-                  </div>
-                  <div className="hidden lg:flex flex-col text-left">
-                    <span className="text-xs text-text-muted">Good evening,</span>
-                    <span className="text-xs font-medium text-text-primary">{user.name.split(' ')[0]}</span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-text-secondary" />
-                </button>
-
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 py-1 bg-elevated border border-hairline rounded-md shadow-float z-50 animate-in fade-in zoom-in-95 duration-120">
-                    <div className="px-4 py-2 border-b border-hairline">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-text-primary truncate">{user.name}</p>
-                        {user.role === 'admin' && (
-                          <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold">ADMIN</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-text-muted truncate">{user.email}</p>
-                    </div>
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-accent" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      to="/questions"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-                    >
-                      <Database className="w-3.5 h-3.5 text-accent" />
-                      Question Bank
-                    </Link>
-                    <Link
-                      to="/custom-interview"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-                    >
-                      <Sliders className="w-3.5 h-3.5 text-accent" />
-                      Custom Builder
-                    </Link>
-                    {user.role === 'admin' && (
-                      <Link
-                        to="/admin"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs text-purple-300 hover:text-purple-200 hover:bg-surface-hover font-semibold"
-                      >
-                        <Shield className="w-3.5 h-3.5 text-purple-400" />
-                        Admin Command Center
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-surface-hover text-left cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Link
-                to="/login"
-                className="text-sm font-medium text-text-secondary hover:text-text-primary px-3 py-1.5 transition-colors"
-              >
-                Sign in
-              </Link>
-              <Link
-                to="/register"
-                className="btn-primary-glow px-4 py-2 rounded-full text-xs font-semibold text-white tracking-wide flex items-center gap-1.5 cursor-pointer"
-              >
-                Get Started
-              </Link>
-            </div>
-          )}
+    <>
+      <div className="sticky top-0 z-40 w-full pt-2 pb-1 px-3 sm:px-6 pointer-events-none transition-all">
+        <div className="pointer-events-auto max-w-7xl mx-auto flex justify-center">
+          <AnimatedTopDock
+            variant="modern"
+            proximity={122}
+            spring={0.19}
+            damping={0.70}
+            widthGrowth={17}
+            heightGrowth={16}
+            drop={3.5}
+            showStage={false}
+            showCaption={false}
+            customBrand={brandElement}
+            customItems={navItems}
+            activeId={activeNav}
+            onItemClick={handleItemSelect}
+            signInLabel={user ? user.name.split(' ')[0] : 'Sign in'}
+            onSignInClick={() => {
+              if (user) {
+                setDropdownOpen((prev) => !prev);
+              } else {
+                navigate('/login');
+              }
+            }}
+            ctaLabel={user ? 'Mock Interview' : 'Start Free'}
+            onCtaClick={() => {
+              if (user) {
+                setShowTierModal(true);
+              } else {
+                navigate('/register');
+              }
+            }}
+          />
         </div>
       </div>
-    </header>
+
+      {/* Target Company & Tier Setup Wizard Modal */}
+      {showTierModal && (
+        <CompanyTierModal
+          isOpen={showTierModal}
+          onClose={() => setShowTierModal(false)}
+        />
+      )}
+
+      {/* User dropdown menu if logged in */}
+      {dropdownOpen && user && (
+        <>
+          {/* Backdrop overlay to close dropdown */}
+          <div
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setDropdownOpen(false)}
+          />
+          <div className="fixed top-20 right-8 md:right-24 w-52 py-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 pointer-events-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 py-2 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-white truncate">{user.name}</p>
+                {user.role === 'admin' && (
+                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold">ADMIN</span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={() => {
+                setDropdownOpen(false);
+                navigate('/dashboard');
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => {
+                setDropdownOpen(false);
+                navigate('/questions');
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+            >
+              <Database className="w-3.5 h-3.5 text-blue-400" />
+              Question Bank
+            </button>
+            <button
+              onClick={() => {
+                setDropdownOpen(false);
+                navigate('/custom-interview');
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+            >
+              <Sliders className="w-3.5 h-3.5 text-blue-400" />
+              Custom Builder
+            </button>
+            {user.role === 'admin' && (
+              <button
+                onClick={() => {
+                  setDropdownOpen(false);
+                  navigate('/admin');
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-purple-300 hover:text-purple-200 hover:bg-white/5 text-left font-semibold transition-colors cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-purple-400" />
+                Admin Portal
+              </button>
+            )}
+            <div className="border-t border-white/10 mt-1 pt-1">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

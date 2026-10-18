@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function AuroraBackground({ showHorizon = true, intensity = 1.0 }) {
+export default function AuroraBackground({ showHorizon = true, intensity = 1.0, transparent = false }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -44,13 +44,15 @@ export default function AuroraBackground({ showHorizon = true, intensity = 1.0 }
       time += 1;
       ctx.clearRect(0, 0, width, height);
 
-      // Deep dark cosmic background
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-      bgGrad.addColorStop(0, '#07090E');
-      bgGrad.addColorStop(0.5, '#0B0D13');
-      bgGrad.addColorStop(1, '#0F1115');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
+      if (!transparent) {
+        // Deep dark cosmic background
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+        bgGrad.addColorStop(0, '#07090E');
+        bgGrad.addColorStop(0.5, '#0B0D13');
+        bgGrad.addColorStop(1, '#0F1115');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+      }
 
       // Render Stars with twinkling
       for (const star of stars) {

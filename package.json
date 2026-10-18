@@ -1,0 +1,23 @@
+{
+  "name": "prepai-platform",
+  "version": "1.0.0",
+  "description": "PrepAI AI-Powered Enterprise Mock Interview Platform",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "test": "npm run test:unit",
+    "test:unit": "node server/test-learning-loops.js && node server/test_addendum.js",
+    "test:integration": "node server/test-e2e.js",
+    "test:security": "node server/test-production-audit.js && node server/test-adversarial-and-resilience.js",
+    "load-test": "k6 run load-tests/k6-mocked-llm.js",
+    "load-test:spike": "k6 run load-tests/k6-spike.js",
+    "load-test:sse": "node load-tests/sse-soak.js"
+  },
+  "keywords": ["ai", "mock-interview", "claude", "system-design", "dsa", "enterprise"],
+  "author": "PrepAI Team",
+  "license": "UNLICENSED"
+}

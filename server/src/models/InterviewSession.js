@@ -1,6 +1,34 @@
 const mongoose = require('mongoose');
 
+const turnScoreSchema = new mongoose.Schema({
+  overall: {
+    type: Number,
+    min: 0,
+    max: 10,
+    default: null,
+  },
+  dimensionScores: {
+    type: Map,
+    of: Number,
+    default: () => new Map(),
+  },
+  topicTags: [{
+    type: String,
+    trim: true,
+  }],
+  reasoning: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+}, { _id: false });
+
 const turnSchema = new mongoose.Schema({
+  questionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'QuestionBank',
+    default: null,
+  },
   question: {
     type: String,
     required: true,
@@ -16,6 +44,10 @@ const turnSchema = new mongoose.Schema({
   timestamp: {
     type: Date,
     default: Date.now,
+  },
+  turnScore: {
+    type: turnScoreSchema,
+    default: null,
   },
 });
 
@@ -137,6 +169,19 @@ const interviewSessionSchema = new mongoose.Schema({
     completionTokens: { type: Number, default: 0 },
     totalTokens: { type: Number, default: 0 },
   },
+  // Version stamps make every score reproducible and let the learning loops
+  // compare/rollback rubric, prompt, readiness-weight and selection policies.
+  rubricVersion: { type: String, default: null },
+  promptVersion: { type: String, default: null },
+  weightsVersion: { type: String, default: null },
+  selectionPolicyVersion: { type: String, default: null },
+  abilityEstimateAtStart: { type: Number, default: null },
+  correlationId: { type: String, default: null },
+  // Idempotency marker for answer submission retries/reconnects. A duplicate
+  // answer must never be scored twice or overwrite the next question.
+  lastAnswerHash: { type: String, default: null },
+  lastAnswerAt: { type: Date, default: null },
+  lastStreamKey: { type: String, default: null },
   turns: [turnSchema],
   finalScore: {
     type: finalScoreSchema,
@@ -157,6 +202,8 @@ interviewSessionSchema.index({ userId: 1, startedAt: -1 });
 interviewSessionSchema.index({ status: 1, startedAt: -1 });
 interviewSessionSchema.index({ companyTier: 1, seniorityLevel: 1 });
 interviewSessionSchema.index({ 'finalScore.overall': -1 });
+interviewSessionSchema.index({ rubricVersion: 1, completedAt: -1 });
+interviewSessionSchema.index({ correlationId: 1 });
 
 module.exports = mongoose.model('InterviewSession', interviewSessionSchema);
 

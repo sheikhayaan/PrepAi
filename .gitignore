@@ -29,3 +29,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Load-test credentials (generated)
+load-tests/.tokens.json

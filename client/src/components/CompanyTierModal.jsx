@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInterviewStore } from '../store/useInterviewStore';
+import { useAuthStore } from '../store/useAuthStore';
 import {
   Building2,
   Award,
@@ -13,19 +14,40 @@ import {
   Sparkles,
   ShieldCheck,
   Zap,
+  AlertCircle,
+  LogIn,
 } from 'lucide-react';
 
-export default function CompanyTierModal({ isOpen, onClose }) {
+export default function CompanyTierModal({ isOpen = true, onClose }) {
   const navigate = useNavigate();
   const { startInterview, loading } = useInterviewStore();
+  const { user } = useAuthStore();
 
   const [companyTier, setCompanyTier] = useState('faang');
   const [targetCompany, setTargetCompany] = useState('Google');
   const [seniorityLevel, setSeniorityLevel] = useState('L5 (Senior)');
   const [targetPackage, setTargetPackage] = useState('$250k - $380k');
   const [selectedType, setSelectedType] = useState('system_design');
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  if (!isOpen) return null;
+  // Close on Escape key and lock background scroll
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (isOpen === false) return null;
 
   const faangCompanies = ['Google', 'Meta', 'Amazon', 'Apple', 'Netflix', 'Microsoft'];
   const tier1Companies = ['Stripe', 'Uber', 'Airbnb', 'Databricks', 'Snowflake', 'Coinbase'];
@@ -40,6 +62,13 @@ export default function CompanyTierModal({ isOpen, onClose }) {
   };
 
   const handleStart = async () => {
+    setErrorMessage(null);
+    if (!user) {
+      if (onClose) onClose();
+      navigate('/login');
+      return;
+    }
+
     const res = await startInterview(selectedType, {
       companyTier,
       targetCompany,
@@ -47,14 +76,22 @@ export default function CompanyTierModal({ isOpen, onClose }) {
       targetPackage,
     });
     if (res.success && res.session) {
-      onClose();
+      if (onClose) onClose();
       navigate(`/interview/${res.session._id}`);
+    } else {
+      setErrorMessage(res.error || 'Failed to start interview session. Please try again.');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="glass-window max-w-2xl w-full rounded-2xl p-6 sm:p-8 border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9),0_0_60px_rgba(59,130,246,0.35)] relative flex flex-col max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="glass-window max-w-2xl w-full rounded-2xl p-5 sm:p-7 border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9),0_0_60px_rgba(59,130,246,0.35)] relative flex flex-col max-h-[90vh] overflow-y-auto pointer-events-auto overscroll-contain"
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -199,7 +236,7 @@ export default function CompanyTierModal({ isOpen, onClose }) {
               <Zap className="w-3.5 h-3.5 text-accent" />
               4. Interview Track
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-44 overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {[
                 { id: 'system_design', name: 'System Design', icon: Server, desc: 'Architecture & distributed scaling' },
                 { id: 'dsa', name: 'DSA & Coding', icon: Cpu, desc: 'Algorithms, complexity & edge cases' },
@@ -233,6 +270,47 @@ export default function CompanyTierModal({ isOpen, onClose }) {
             </div>
           </div>
         </div>
+
+        {/* Error or Guest Alert */}
+        {errorMessage && (
+          <div className="mt-4 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200 flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            {!user && (
+              <button
+                onClick={() => {
+                  if (onClose) onClose();
+                  navigate('/login');
+                }}
+                className="px-3 py-1 bg-red-500/30 hover:bg-red-500/50 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+              >
+                <LogIn className="w-3 h-3" />
+                Sign In
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Guest Warning if not signed in */}
+        {!user && !errorMessage && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Sign in required to record telemetry and save your AI scoring report.</span>
+            </div>
+            <button
+              onClick={() => {
+                if (onClose) onClose();
+                navigate('/login');
+              }}
+              className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
 
         {/* Modal Action Buttons */}
         <div className="flex items-center justify-end gap-3 pt-6 border-t border-hairline mt-6">

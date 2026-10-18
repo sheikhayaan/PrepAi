@@ -82,6 +82,8 @@ async function runTests() {
   console.log('\n===========================================');
   console.log('ALL ADDENDUM AUTOMATED VERIFICATIONS PASSED (5/5)');
   console.log('===========================================');
+  await mongoose.disconnect();
+  process.exit(0);
 }
 
 runTests().catch((err) => {
