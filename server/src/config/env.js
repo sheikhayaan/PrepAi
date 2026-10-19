@@ -127,6 +127,18 @@ const config = {
     auditHotRetentionDays: intEnv('AUDIT_HOT_RETENTION_DAYS', 90, { min: 1, max: 3650 }),
   },
 
+  email: {
+    // Console is a deliberate dev fallback: it logs the action link instead of
+    // sending mail. Production should use resend/sendgrid/webhook.
+    provider: strEnv('EMAIL_PROVIDER', 'console').toLowerCase(),
+    apiKey: strEnv('EMAIL_API_KEY'),
+    from: strEnv('EMAIL_FROM', 'PrepAI <no-reply@prepai.local>'),
+    replyTo: strEnv('EMAIL_REPLY_TO'),
+    webhookUrl: strEnv('EMAIL_WEBHOOK_URL'),
+    appUrl: strEnv('APP_PUBLIC_URL', strEnv('CLIENT_URL', 'http://localhost:5200').split(',')[0].trim()),
+    timeoutMs: intEnv('EMAIL_TIMEOUT_MS', 6000, { min: 500, max: 30000 }),
+  },
+
   llm: {
     // ---- Streaming / provider resilience -------------------------------
     concurrencyPerInstance: intEnv('LLM_CONCURRENCY_PER_INSTANCE', 50, { min: 1, max: 1000 }),
@@ -208,6 +220,25 @@ function validateEnv() {
     if (config.mongo.maxPoolSize < config.mongo.minPoolSize) {
       errors.push('CRITICAL: MONGO_MAX_POOL_SIZE must be >= MONGO_MIN_POOL_SIZE.');
     }
+  }
+
+  const emailProvider = config.email.provider;
+  if (!['console', 'resend', 'sendgrid', 'webhook'].includes(emailProvider)) {
+    errors.push(`CRITICAL: EMAIL_PROVIDER "${emailProvider}" is not supported (use console, resend, sendgrid or webhook).`);
+  }
+  if (emailProvider === 'console' && isProduction) {
+    warnings.push('EMAIL_PROVIDER=console in production: verification and reset links will only be logged, never delivered.');
+  }
+  if (['resend', 'sendgrid'].includes(emailProvider) && !config.email.apiKey) {
+    const msg = `EMAIL_API_KEY is required when EMAIL_PROVIDER=${emailProvider}.`;
+    if (isProduction) errors.push(`CRITICAL: ${msg}`); else warnings.push(msg);
+  }
+  if (emailProvider === 'webhook' && !config.email.webhookUrl) {
+    const msg = 'EMAIL_WEBHOOK_URL is required when EMAIL_PROVIDER=webhook.';
+    if (isProduction) errors.push(`CRITICAL: ${msg}`); else warnings.push(msg);
+  }
+  if (isProduction && !config.email.appUrl.startsWith('https://')) {
+    warnings.push('APP_PUBLIC_URL is not HTTPS; verification and reset links will be rejected by some mail clients.');
   }
 
   if (config.llm.globalConcurrency < config.llm.concurrencyPerInstance) {

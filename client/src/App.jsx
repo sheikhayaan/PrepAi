@@ -11,6 +11,7 @@ import PricingPage from './pages/PricingPage';
 import BlogPage from './pages/BlogPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/AuthRecoveryPages';
 import DashboardPage from './pages/DashboardPage';
 import InterviewPage from './pages/InterviewPage';
 import ResultsPage from './pages/ResultsPage';
@@ -83,6 +84,9 @@ export default function App() {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route
               path="/dashboard"
               element={

@@ -8,6 +8,7 @@ const SecurityAlert = require('../models/SecurityAlert');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 const { generateBase32Secret, verifyTOTP, generateRecoveryCodes } = require('../utils/totp');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy_client_id');
 
@@ -111,6 +112,10 @@ const register = async (req, res) => {
       requestId: req.id,
       status: 'success',
     });
+
+    // Fire-and-forget: a mail outage must never fail registration. Delivery
+    // failures are logged and counted by the mailer itself.
+    void sendVerificationEmail(user, verificationRaw);
 
     return sendTokenResponse(user, 201, res, req);
   } catch (error) {
@@ -386,6 +391,8 @@ const forgotPassword = async (req, res) => {
       requestId: req.id,
     });
 
+    void sendPasswordResetEmail(user, resetToken);
+
     return res.json({
       success: true,
       message: 'If an account exists with that email, a password reset link has been prepared.',
@@ -448,6 +455,32 @@ const resetPassword = async (req, res) => {
     return res.json({ success: true, message: 'Password reset successfully. Please log in.', requestId: req.id });
   } catch (error) {
     return res.status(500).json({ error: 'Password reset failed.', requestId: req.id });
+  }
+};
+
+// @desc    Re-send the verification email for the signed-in user
+// @route   POST /api/auth/resend-verification
+const resendVerification = async (req, res) => {
+  try {
+    if (req.user.isEmailVerified) {
+      return res.json({ success: true, message: 'Email is already verified.', requestId: req.id });
+    }
+
+    const verificationRaw = crypto.randomBytes(32).toString('hex');
+    req.user.emailVerificationTokenHash = hashToken(verificationRaw);
+    req.user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await req.user.save();
+
+    void sendVerificationEmail(req.user, verificationRaw);
+
+    return res.json({
+      success: true,
+      message: 'If the address still needs verification, a new link has been sent.',
+      requestId: req.id,
+    });
+  } catch (error) {
+    logger.error('Resend verification error', { requestId: req.id, error: error.message });
+    return res.status(500).json({ error: 'Could not resend the verification email.', requestId: req.id });
   }
 };
 
@@ -583,6 +616,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  resendVerification,
   setup2FA,
   verify2FA,
   disable2FA,

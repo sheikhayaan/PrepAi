@@ -10,12 +10,13 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  resendVerification,
   setup2FA,
   verify2FA,
   disable2FA,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, standardLimiter } = require('../middleware/rateLimiter');
 const { standardApiTimeout } = require('../middleware/timeoutMiddleware');
 
 router.use(standardApiTimeout);
@@ -25,7 +26,8 @@ router.post('/login', authLimiter, login);
 router.post('/google', authLimiter, googleAuth);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password', authLimiter, resetPassword);
-router.post('/verify-email', verifyEmail);
+router.post('/verify-email', standardLimiter, verifyEmail);
+router.post('/resend-verification', protect, authLimiter, resendVerification);
 
 router.get('/me', protect, getMe);
 router.post('/logout', logout);

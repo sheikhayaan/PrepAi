@@ -57,7 +57,7 @@
 | 8 | [Measured performance](#-measured-performance) | Histogram, every sample, cold-start warning |
 | 9 | [Codebase composition](#-codebase-composition) | Donut from real `wc -l`, not estimates |
 | 10 | [Repository map](#-repository-map) | Tree SVG with per-file line counts |
-| 11 | [Quickstart](#-quickstart) | Two local paths, minimum `.env`, 60-second smoke test |
+| 11 | [Quickstart](#-quickstart) | npm, split terminals or Docker Compose; minimum `.env`; 60-second smoke test |
 | 12 | [Configuration](#-configuration) | Every env var from `.env.example` |
 | 13 | [API reference](#-api-reference) | 40+ endpoints, auth column, real JSON |
 | 14 | [Security model](#-security-model) | Layer → control → enforcement point |
@@ -150,8 +150,8 @@ The design rule underneath all five: **MongoDB is correctness, Redis is speed, C
 | Audit log + CSV export | ✅ | <code>GET /api/admin/audit-logs/export</code> |
 | 2FA (TOTP) | ✅ | <code>/api/auth/2fa/*</code> |
 | Google OAuth | ✅ | <code>POST /api/auth/google</code> |
-| Transactional email | ⬜ | No mailer dependency; tokens are surfaced in dev only |
-| Docker Compose | ⬜ | Not shipped; see [Quickstart](#-quickstart) |
+| Transactional email | ✅ | Resend / SendGrid / webhook / console; verify + reset pages |
+| Docker Compose | ✅ | `docker compose up --build` (Mongo + Redis + API + Nginx) |
 
 ---
 
@@ -504,11 +504,11 @@ The bench ran **after warm-up**. It does **not** include the first request after
 
 | Area | Lines | Share |
 |---|---:|---:|
-| Backend core (`server/src` + `server.js`) | 10,163 | 39.0% |
-| Frontend (`client/src`, JS/JSX/TS/TSX/CSS) | 13,974 | 53.7% |
-| Backend tests (`server/test*.js`) | 1,114 | 4.3% |
-| Load tests (`load-tests/`) | 779 | 3.0% |
-| **Total** | **26,030** | **100%** |
+| Backend core (`server/src` + `server.js`) | 10,454 | 39.1% |
+| Frontend (`client/src`, JS/JSX/TS/TSX/CSS) | 14,209 | 53.2% |
+| Backend tests (`server/test*.js`) | 1,277 | 4.8% |
+| Load tests (`load-tests/`) | 779 | 2.9% |
+| **Total** | **26,719** | **100%** |
 
 Counted by `docs/assets/generate.py` with `node_modules`, `dist`, `build`, `.git`, `venv` excluded. Rerun the generator to refresh the donut; the numbers above are not hand-edited.
 
@@ -522,8 +522,8 @@ Counted by `docs/assets/generate.py` with `node_modules`, `dist`, `build`, `.git
 <summary><strong>Plain-text tree with line counts</strong></summary>
 
 ```text
-PrepAi/                                  26,030 lines total (4 groups)
-├── server/                              10,163 core + 1,114 tests
+PrepAi/                                  26,719 lines total (4 groups)
+├── server/                              10,454 core + 1,277 tests
 │   ├── server.js                           304  boot, health, metrics, CORS, shutdown
 │   ├── src/config/
 │   │   ├── env.js                          230  validated config + prod guards
@@ -535,6 +535,7 @@ PrepAi/                                  26,030 lines total (4 groups)
 │   │   └── adminController.js                   overview/users/alerts/audit
 │   ├── src/services/
 │   │   ├── anthropicClient.js            1,249  prompts, guards, simulation
+│   │   ├── emailService.js                 224  verify/reset mail, 4 providers
 │   │   ├── llmResilience.js                226  retry, queue, fallback
 │   │   ├── tokenBudget.js                       per-user/session reserve
 │   │   └── globalLlmBudget.js                   cluster-wide slots
@@ -551,8 +552,8 @@ PrepAi/                                  26,030 lines total (4 groups)
 │   ├── src/jobs/scoringWorker.js           116  async scoring + stamps
 │   ├── src/models/InterviewSession.js      209  score, turns, versions
 │   ├── src/middleware/rateLimiter.js        72  5 buckets, Redis store
-│   └── test-*.js                         1,114  learning/e2e/audit/adversarial
-├── client/                             13,974  React UI (JSX + TS/CSS shaders)
+│   └── test-*.js                         1,277  learning/e2e/audit/adversarial/email
+├── client/                             14,209  React UI (JSX + TS/CSS shaders)
 │   ├── src/pages/InterviewPage.jsx         815  studio, voice, code pad, SSE
 │   ├── src/store/useInterviewStore.js      191  stream + session state
 │   └── src/pages/AdminDashboardPage.jsx         users, alerts, audit
@@ -619,7 +620,16 @@ cd server && npm run dev
 cd client && npm run dev
 ```
 
-> **Docker Compose is not shipped in this repository.** The two local paths above are the supported quickstart. The deployment guide covers managed Mongo/Redis and containers per service.
+### Path C — Docker Compose
+
+```bash
+# JWT_SECRET is mandatory; everything else has a safe default.
+JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+# web  -> http://localhost:8080   (nginx proxies /api and streams SSE unbuffered)
+# api  -> http://localhost:5000
+```
+
+The compose file runs MongoDB, Redis, the API image (non-root, health-checked) and an Nginx image that serves the SPA and reverse-proxies `/api` so the auth cookie stays first-party. Point `MONGO_URI` / `REDIS_URL` at managed services for real deployments. The Dockerfiles were written and `docker compose config` validates, but images were **not built on this machine** (no Docker daemon available) — verify with `docker compose build` before relying on them.
 
 ### 60-second smoke test
 
@@ -756,6 +766,23 @@ All variables are read and validated in `server/src/config/env.js`. Defaults bel
 </details>
 
 <details>
+<summary><strong>Transactional email</strong></summary>
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `EMAIL_PROVIDER` | `console` | `console` · `resend` · `sendgrid` · `webhook` |
+| `EMAIL_API_KEY` | empty | Required for resend/sendgrid; optional bearer for webhook |
+| `EMAIL_FROM` | `PrepAI <no-reply@prepai.local>` | Envelope sender |
+| `EMAIL_REPLY_TO` | empty | Optional reply-to |
+| `EMAIL_WEBHOOK_URL` | empty | Generic JSON sink for `webhook` |
+| `APP_PUBLIC_URL` | first `CLIENT_URL` | Origin used in emailed links |
+| `EMAIL_TIMEOUT_MS` | `6000` | Per-send abort deadline |
+
+`console` logs the action link in development only. In production it is allowed but warned, because links are never delivered. A provider error never fails registration or reset: it is logged and counted in `prepai_email_sent_total{provider,type,status}`.
+
+</details>
+
+<details>
 <summary><strong>Continuous learning</strong></summary>
 
 | Variable | Default | Purpose |
@@ -801,6 +828,7 @@ Base URL: `http://localhost:5000`. Auth is an **httpOnly cookie** (`token`); adm
 | POST | `/api/auth/forgot-password` | Public | Reset request |
 | POST | `/api/auth/reset-password` | Public | Consume reset token |
 | POST | `/api/auth/verify-email` | Public | Verify email token |
+| POST | `/api/auth/resend-verification` | User | Send a fresh verification link |
 | GET | `/api/auth/me` | User | Current profile |
 | POST | `/api/auth/logout` | Public | Clear cookie |
 | POST | `/api/auth/logout-all` | User | Revoke all sessions |
@@ -1019,6 +1047,7 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the production checklist and [`ROLLBACK
 | Syntax, all server JS | `node --check` over `server/**/*.js` | **pass** |
 | Learning-loop unit checks | `node server/test-learning-loops.js` | **21 checks passed** |
 | Addendum checks | `node server/test_addendum.js` | **5/5 passed** |
+| Email delivery checks | `node server/test-email.js` | **11/11 passed** |
 | End-to-end API | `node server/test-e2e.js` | **7/7 passed** |
 | Production audit | `node server/test-production-audit.js` | **11/11 passed** |
 | Adversarial + resilience | `node server/test-adversarial-and-resilience.js` | **all checks passed** |
@@ -1089,6 +1118,12 @@ flowchart LR
 4. Set `TRUST_PROXY_HOPS` to the platform’s proxy depth.
 5. Allow ≥ 30 s drain (`GRACEFUL_SHUTDOWN_MS`).
 
+**Docker Compose (single host)**
+
+1. `JWT_SECRET=... docker compose up --build`.
+2. Web on `:8080`, API on `:5000`; nginx disables proxy buffering for SSE.
+3. Replace the bundled Mongo/Redis with managed services before scaling out.
+
 **MongoDB Atlas**
 
 1. Replica set (required for `MONGO_SECONDARY_READS=true`).
@@ -1125,6 +1160,8 @@ flowchart LR
 | `redis: degraded` in readiness | Redis unreachable | Start Redis, or set `REDIS_DISABLED=true` intentionally |
 | SSE stalls behind Nginx | Response buffering | `proxy_buffering off` + `X-Accel-Buffering: no` |
 | Rate limits key on the wrong IP | Proxy hops misconfigured | Set `TRUST_PROXY_HOPS` to the real hop count |
+| Verification or reset email never arrives | `EMAIL_PROVIDER=console`, or provider key missing/invalid | Set `EMAIL_PROVIDER=resend|sendgrid|webhook` + `EMAIL_API_KEY`; check `prepai_email_sent_total` |
+| Emailed link opens a 404 page | `APP_PUBLIC_URL` points at the API host instead of the web app | Set it to the browser-facing origin (e.g. `https://prepai.app`) |
 | `finalScore` missing right after `/complete` | Scoring is async by design | Poll `GET /:id` until the worker writes it |
 | A session scores `0.5` with “Adversarial Bypass” | One injection turn poisons the deterministic score | Expected security behavior; start a clean session |
 | Learning promotion rejected `proposed → active` | Illegal transition | Use `shadow → canary → active` with `approvedBy` |

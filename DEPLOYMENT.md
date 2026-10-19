@@ -78,6 +78,10 @@ Load Balancer
 | `LEARNING_LOOPS_ENABLED` | No | Offline learning scheduler (human-gated) | `true` |
 | `ADAPTIVE_SELECTION_ENABLED` | No | Loop A adaptive question selection | `true` after calibration |
 | `GOOGLE_CLIENT_ID` | Optional | Google OAuth 2.0 Client ID | `your-id.apps.googleusercontent.com` |
+| `EMAIL_PROVIDER` | **Yes** | Transactional mail transport | `resend` / `sendgrid` / `webhook` (never `console` in prod) |
+| `EMAIL_API_KEY` | **Yes** | Provider API key (or webhook bearer) | `re_...` / `SG....` |
+| `EMAIL_FROM` | **Yes** | Verified sender identity | `PrepAI <no-reply@prepai.app>` |
+| `APP_PUBLIC_URL` | **Yes** | Browser origin used in verify/reset links (HTTPS) | `https://prepai.yourdomain.com` |
 
 See [`.env.example`](.env.example) for the complete list with safe defaults.
 
@@ -157,7 +161,7 @@ after the promotion invalidates the cache.
 cd client && npm run build
 
 # 2. Deterministic unit checks (no DB/Redis required)
-cd .. && npm test
+cd .. && npm test          # learning + addendum + email delivery
 
 # 3. Schema + security verification (MongoDB required)
 cd server && node test-verification.js
@@ -171,6 +175,17 @@ cd .. && npm run load-test
 ```
 
 ---
+
+## 5b. Container Deployment (single host)
+
+```bash
+JWT_SECRET=$(openssl rand -hex 32) EMAIL_PROVIDER=resend EMAIL_API_KEY=re_xxx APP_PUBLIC_URL=https://prepai.yourdomain.com docker compose up --build -d
+```
+
+- `web` (`:8080`) serves the built SPA and proxies `/api`; proxy buffering is off for SSE.
+- `api` (`:5000`) runs as non-root with a liveness health check; readiness still gates traffic.
+- Mongo and Redis are bundled for parity only — use managed services before scaling horizontally.
+- Confirm mail delivery before opening signup: `prepai_email_sent_total{status="failed"}` must stay at 0.
 
 ## 6. Rollback
 
