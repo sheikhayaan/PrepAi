@@ -1022,7 +1022,7 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the production checklist and [`ROLLBACK
 | End-to-end API | `node server/test-e2e.js` | **7/7 passed** |
 | Production audit | `node server/test-production-audit.js` | **11/11 passed** |
 | Adversarial + resilience | `node server/test-adversarial-and-resilience.js` | **all checks passed** |
-| Client production build | `npm run build` | **pass** (`built in 13.63s`) |
+| Client production build | `npm run build` | **pass**, 9 chunks, no size warning |
 | k6 mocked LLM | `k6 run load-tests/k6-mocked-llm.js` | **0.00% failures**, p95 ≈ 171 ms (150 VUs) |
 | k6 spike | `k6 run load-tests/k6-spike.js` | **0 server 5xx**, p95 ≈ 8.6 ms (400 VUs) |
 | SSE soak | `node load-tests/sse-soak.js` | **50/50 streams**, 0×429, TTFB p95 ≈ 413 ms |
