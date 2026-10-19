@@ -56,6 +56,16 @@ services:
       LEARNING_LOOPS_ENABLED: ${LEARNING_LOOPS_ENABLED:-true}
       ADAPTIVE_SELECTION_ENABLED: ${ADAPTIVE_SELECTION_ENABLED:-false}
       METRICS_ENABLED: "true"
+      # Required in production: /metrics returns 404 when this is unset.
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # Tunable rate limits: raise for load tests, keep production defaults.
+      RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-20}
+      RATE_LIMIT_START_MAX: ${RATE_LIMIT_START_MAX:-15}
+      RATE_LIMIT_ANSWER_MAX: ${RATE_LIMIT_ANSWER_MAX:-40}
+      RATE_LIMIT_STANDARD_MAX: ${RATE_LIMIT_STANDARD_MAX:-300}
+      # SSE connection caps (raise for load tests, keep defaults in production).
+      SSE_MAX_PER_USER: ${SSE_MAX_PER_USER:-2}
+      SSE_MAX_PER_IP: ${SSE_MAX_PER_IP:-10}
     ports:
       - "5000:5000"
     healthcheck:

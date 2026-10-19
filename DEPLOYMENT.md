@@ -185,6 +185,10 @@ JWT_SECRET=$(openssl rand -hex 32) EMAIL_PROVIDER=resend EMAIL_API_KEY=re_xxx AP
 - `web` (`:8080`) serves the built SPA and proxies `/api`; proxy buffering is off for SSE.
 - `api` (`:5000`) runs as non-root with a liveness health check; readiness still gates traffic.
 - Mongo and Redis are bundled for parity only — use managed services before scaling horizontally.
+- `METRICS_TOKEN` is forwarded by compose. In production `/metrics` returns **404** unless the token is set *and* presented; set it before wiring Prometheus.
+- Capacity knobs are forwarded too, so you can tune without editing the image: `RATE_LIMIT_AUTH_MAX` (20), `RATE_LIMIT_START_MAX` (15), `RATE_LIMIT_ANSWER_MAX` (40), `RATE_LIMIT_STANDARD_MAX` (300), `SSE_MAX_PER_USER` (2), `SSE_MAX_PER_IP` (10). Raise them only for load tests, never in production.
+- nginx disables gzip and buffering on `/api` so SSE events are never coalesced; do not re-enable compression on the API path.
+- Verify: `curl -H "Authorization: Bearer $METRICS_TOKEN" localhost:5000/metrics | head` and `curl -N -X POST localhost:8080/api/interviews/<id>/answer`.
 - Confirm mail delivery before opening signup: `prepai_email_sent_total{status="failed"}` must stay at 0.
 
 ## 6. Rollback

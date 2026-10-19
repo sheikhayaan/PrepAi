@@ -1053,8 +1053,9 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the production checklist and [`ROLLBACK
 | Adversarial + resilience | `node server/test-adversarial-and-resilience.js` | **all checks passed** |
 | Client production build | `npm run build` | **pass**, 9 chunks, no size warning |
 | k6 mocked LLM | `k6 run load-tests/k6-mocked-llm.js` | **0.00% failures**, p95 ≈ 171 ms (150 VUs) |
+| k6 1,000-VU read path | `READ_VUS=1000 INTERVIEW_VUS=20 DURATION=1m BASE_URL=http://localhost:8080 k6 run load-tests/k6-mocked-llm.js` | **1,000 VUs reached**, 213,560 reqs, 887 req/s, **0 failed responses**, p95 **517 ms** |
 | k6 spike | `k6 run load-tests/k6-spike.js` | **0 server 5xx**, p95 ≈ 8.6 ms (400 VUs) |
-| SSE soak | `node load-tests/sse-soak.js` | **50/50 streams**, 0×429, TTFB p95 ≈ 413 ms |
+| SSE soak | `node load-tests/sse-soak.js` | **50/50 streams** (dev), **28/28** (compose + nginx), 0×429, TTFB p95 ≈ 413 ms |
 | API bench | `node load-tests/bench-api.mjs` | **33/33 ok**, 0 failed |
 | SVG self-audit | `node docs/assets/check-svg.mjs` | **0 issues** on 6 figures |
 
@@ -1074,7 +1075,7 @@ gantt
     k6 + SSE soak + bench :done, k1, 2026-03-01, 8d
 ```
 
-> The 150-VU and 400-VU runs above were local, mocked-LLM runs. A full **1,000-VU / 150-stream** run is documented in `load-tests/README.md` but was **not** executed on this machine; do not read the scaled numbers as a 1,000-user certification.
+> All load numbers above come from one Windows host with a mocked LLM. The 1,000-VU run reached 1,000 VUs through the Compose stack (nginx → API → Mongo/Redis) at 887 req/s with zero failed responses, but its read-path p95 of **517 ms crossed the 400 ms threshold** (see `docs/assets/load-1000vu.json`); it is a capacity probe, not a hardware-normalised SLO. Under that same saturation the interview scenario's `start` calls failed at the dial layer, so SSE concurrency was certified separately at 50 streams (dev) and 28 streams through nginx (containers), both 0 failures. A published 1,000-user SLO still requires a multi-node run on production-class hardware.
 
 ---
 

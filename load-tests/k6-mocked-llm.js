@@ -133,5 +133,12 @@ export function interviewPath() {
   if (!passed) sseFailed.add(1);
   sseWaiting.add(Number(answerRes.timings.waiting) || 0);
 
+  // Close the session so the next iteration can start a new interview.
+  // One-open-session-per-user is a product guardrail, not a load-test artifact.
+  http.post(`${BASE}/api/interviews/${session._id}/complete`, JSON.stringify({}), {
+    ...headers,
+    timeout: '60s',
+  });
+
   sleep(Math.random() * 2);
 }

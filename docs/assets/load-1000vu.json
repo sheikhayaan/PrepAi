@@ -1,0 +1,15 @@
+{
+  "scenario": "k6-mocked-llm read_path",
+  "command": "READ_VUS=1000 INTERVIEW_VUS=20 DURATION=1m BASE_URL=http://localhost:8080 k6 run load-tests/k6-mocked-llm.js",
+  "stack": "docker compose: api + web(nginx) + mongo + redis, single Windows host, LLM=simulation",
+  "profile_s": 240,
+  "vus_max": 1000,
+  "http_reqs": 213560,
+  "rps": 887.3,
+  "http_req_failed_rate": 0,
+  "read_p95_ms": 517,
+  "read_max_ms": 1790,
+  "threshold_read_p95_400ms_crossed": true,
+  "sse_concurrency_note": "interview_path start requests failed at the dial layer under 1,000-VU saturation; SSE certified separately (28 concurrent streams through nginx in containers, 50 in dev, 0 failures)",
+  "p99_note": "not exported by k6 --summary-export; max latency recorded instead"
+}

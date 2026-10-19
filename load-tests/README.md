@@ -30,6 +30,35 @@ Redis is optional. With Redis running, the run exercises the shared cache,
 rate-limit store, token budgets, global LLM budget and SSE registry. Without it,
 the in-memory fallbacks are exercised (also a supported mode).
 
+## 1b. Or point the load test at the Compose stack
+
+The same run works against `docker compose` (nginx → API → Mongo/Redis) by
+passing the overrides through the environment; the compose file forwards them:
+
+```bash
+export JWT_SECRET=$(openssl rand -hex 32)
+export METRICS_TOKEN=local_loadtest_metrics_token
+export RATE_LIMIT_AUTH_MAX=5000 RATE_LIMIT_START_MAX=5000        RATE_LIMIT_ANSWER_MAX=5000 RATE_LIMIT_STANDARD_MAX=100000
+export SSE_MAX_PER_USER=4 SSE_MAX_PER_IP=1000
+unset ANTHROPIC_API_KEY                 # forces the simulated LLM
+docker compose up -d --build
+
+BASE_URL=http://localhost:8080 USERS=200 SEED_CONCURRENCY=2   node load-tests/seed-users.js
+BASE_URL=http://localhost:8080 USERS=200 node load-tests/sse-soak.js
+```
+
+Two practical notes learned from real runs:
+
+- **Seed concurrency**: bcrypt cost 12 means `SEED_CONCURRENCY=8` can time out
+  on a small host. Use `SEED_CONCURRENCY=2` and raise the auth limit as above.
+- **Interview scenario**: the API allows one in-progress session per user, so the
+  k6 interview flow now calls `/complete` before looping. Under 1,000-VU
+  saturation on a single host, the interview VUs' `start` calls can fail at the
+  dial layer before reaching nginx — measure SSE concurrency separately with
+  `sse-soak.js` and report both numbers honestly.
+
+The last measured run is recorded in `docs/assets/load-1000vu.json`.
+
 ## 2. Seed disposable users
 
 ```bash
