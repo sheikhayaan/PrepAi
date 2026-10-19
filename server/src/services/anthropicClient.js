@@ -996,7 +996,7 @@ async function scoreInterviewWithTool(sessionData, { requestId } = {}) {
   // inconsistent generosity, so transcripts below the minimum substantive
   // length use the deterministic low-score path instead.
   const totalAnswerWords = answeredTurns.reduce(
-    (sum, t) => sum + (t.answer.trim().split(/s+/).filter(Boolean).length || 0),
+    (sum, t) => sum + (t.answer.trim().split(/\s+/).filter(Boolean).length || 0),
     0
   );
   if (totalAnswerWords < 15) {

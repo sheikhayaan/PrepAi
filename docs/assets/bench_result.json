@@ -1,0 +1,374 @@
+{
+  "generatedAt": "2026-10-19T06:32:00.405Z",
+  "baseUrl": "http://127.0.0.1:5000",
+  "environment": {
+    "node": "v24.16.0",
+    "llm": "simulation",
+    "redis": "connected",
+    "mongo": "connected",
+    "instances": 1,
+    "note": "Single local instance; auth cookie from load-tests/.tokens.json."
+  },
+  "summary": {
+    "requests": 33,
+    "failed": 0,
+    "mean": 224.34,
+    "median": 16.38,
+    "p95": 1882.37,
+    "p99": 1897.96
+  },
+  "buckets": [
+    {
+      "lo": 0,
+      "hi": 5,
+      "count": 9
+    },
+    {
+      "lo": 5,
+      "hi": 10,
+      "count": 5
+    },
+    {
+      "lo": 10,
+      "hi": 25,
+      "count": 7
+    },
+    {
+      "lo": 25,
+      "hi": 50,
+      "count": 6
+    },
+    {
+      "lo": 50,
+      "hi": 100,
+      "count": 0
+    },
+    {
+      "lo": 100,
+      "hi": 250,
+      "count": 0
+    },
+    {
+      "lo": 250,
+      "hi": 500,
+      "count": 2
+    },
+    {
+      "lo": 500,
+      "hi": 1000,
+      "count": 0
+    },
+    {
+      "lo": 1000,
+      "hi": null,
+      "count": 4
+    }
+  ],
+  "records": [
+    {
+      "label": "health",
+      "intent": "ops",
+      "status": 200,
+      "ms": 7.35,
+      "bytes": 150,
+      "planes": [
+        "edge"
+      ]
+    },
+    {
+      "label": "health",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.55,
+      "bytes": 150,
+      "planes": [
+        "edge"
+      ]
+    },
+    {
+      "label": "health",
+      "intent": "ops",
+      "status": 200,
+      "ms": 4.06,
+      "bytes": 150,
+      "planes": [
+        "edge"
+      ]
+    },
+    {
+      "label": "health",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.9,
+      "bytes": 150,
+      "planes": [
+        "edge"
+      ]
+    },
+    {
+      "label": "health",
+      "intent": "ops",
+      "status": 200,
+      "ms": 4.99,
+      "bytes": 150,
+      "planes": [
+        "edge"
+      ]
+    },
+    {
+      "label": "readiness",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.54,
+      "bytes": 611,
+      "ready": "ready"
+    },
+    {
+      "label": "readiness",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.45,
+      "bytes": 611,
+      "ready": "ready"
+    },
+    {
+      "label": "readiness",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.52,
+      "bytes": 611,
+      "ready": "ready"
+    },
+    {
+      "label": "readiness",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.97,
+      "bytes": 611,
+      "ready": "ready"
+    },
+    {
+      "label": "readiness",
+      "intent": "ops",
+      "status": 200,
+      "ms": 3.31,
+      "bytes": 611,
+      "ready": "ready"
+    },
+    {
+      "label": "question-bank",
+      "intent": "read",
+      "status": 200,
+      "ms": 15.55,
+      "bytes": 4243,
+      "count": 10
+    },
+    {
+      "label": "question-bank",
+      "intent": "read",
+      "status": 200,
+      "ms": 8.7,
+      "bytes": 4243,
+      "count": 10
+    },
+    {
+      "label": "question-bank",
+      "intent": "read",
+      "status": 200,
+      "ms": 8.22,
+      "bytes": 4243,
+      "count": 10
+    },
+    {
+      "label": "question-bank",
+      "intent": "read",
+      "status": 200,
+      "ms": 7.96,
+      "bytes": 4243,
+      "count": 10
+    },
+    {
+      "label": "question-bank",
+      "intent": "read",
+      "status": 200,
+      "ms": 7.49,
+      "bytes": 4243,
+      "count": 10
+    },
+    {
+      "label": "interview-history",
+      "intent": "read",
+      "status": 200,
+      "ms": 17.3,
+      "bytes": 15,
+      "count": null
+    },
+    {
+      "label": "interview-history",
+      "intent": "read",
+      "status": 200,
+      "ms": 17.41,
+      "bytes": 15,
+      "count": null
+    },
+    {
+      "label": "interview-history",
+      "intent": "read",
+      "status": 200,
+      "ms": 15.44,
+      "bytes": 15,
+      "count": null
+    },
+    {
+      "label": "interview-history",
+      "intent": "read",
+      "status": 200,
+      "ms": 16.38,
+      "bytes": 15,
+      "count": null
+    },
+    {
+      "label": "interview-history",
+      "intent": "read",
+      "status": 200,
+      "ms": 16.41,
+      "bytes": 15,
+      "count": null
+    },
+    {
+      "label": "interview-start",
+      "intent": "write",
+      "status": 201,
+      "ms": 309.52,
+      "bytes": 996,
+      "sessionId": "6ad5b9584ab6c03967830c24"
+    },
+    {
+      "label": "answer-dsa",
+      "intent": "stream",
+      "status": 200,
+      "ms": 1181.23,
+      "bytes": 1714,
+      "ttfb": 34.62,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-dsa",
+      "intent": "stream",
+      "status": 200,
+      "ms": 28.11,
+      "bytes": 1714,
+      "ttfb": 27.59,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-system-design",
+      "intent": "stream",
+      "status": 200,
+      "ms": 1451.7,
+      "bytes": 1544,
+      "ttfb": 24.63,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-system-design",
+      "intent": "stream",
+      "status": 200,
+      "ms": 39.63,
+      "bytes": 1544,
+      "ttfb": 38.73,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-behavioral",
+      "intent": "stream",
+      "status": 200,
+      "ms": 1897.96,
+      "bytes": 1544,
+      "ttfb": 39.66,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-behavioral",
+      "intent": "stream",
+      "status": 200,
+      "ms": 28.55,
+      "bytes": 1544,
+      "ttfb": 28.41,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-prompt-injection",
+      "intent": "stream",
+      "status": 200,
+      "ms": 1882.37,
+      "bytes": 1963,
+      "ttfb": 25.66,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "answer-prompt-injection",
+      "intent": "stream",
+      "status": 200,
+      "ms": 28.53,
+      "bytes": 1963,
+      "ttfb": 28.31,
+      "fallback": true,
+      "promptVersion": "2026.02.1",
+      "answerSource": "simulation"
+    },
+    {
+      "label": "interview-complete",
+      "intent": "queue",
+      "status": 200,
+      "ms": 46.15,
+      "bytes": 4259,
+      "jobId": "2"
+    },
+    {
+      "label": "scoring-worker",
+      "intent": "worker",
+      "status": 200,
+      "ms": 270.55,
+      "bytes": null,
+      "scored": true,
+      "verdict": "Adversarial Bypass Detected (Unrated)",
+      "overall": 0.5
+    },
+    {
+      "label": "analytics-cold",
+      "intent": "read",
+      "status": 200,
+      "ms": 48.66,
+      "bytes": 2038
+    },
+    {
+      "label": "analytics-warm",
+      "intent": "read",
+      "status": 200,
+      "ms": 17.74,
+      "bytes": 2038
+    }
+  ],
+  "scoring": {
+    "queued": "2",
+    "observed": true,
+    "verdict": "Adversarial Bypass Detected (Unrated)",
+    "overall": 0.5,
+    "latencyMs": 342.21
+  }
+}
