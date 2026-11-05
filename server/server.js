@@ -169,6 +169,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'PrepAI Enterprise API', version: '1.0.0', timestamp: new Date().toISOString() });
+});
+
 app.get('/health/live', (req, res) => {
   res.status(200).json({ status: 'live', timestamp: new Date().toISOString(), requestId: req.id });
 });

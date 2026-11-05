@@ -3,10 +3,11 @@ const config = require('./env');
 const { ensureIndexes } = require('./indexes');
 
 const connectDB = async (retries = 3) => {
+  const isSrv = config.mongo.uri.startsWith('mongodb+srv://');
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const conn = await mongoose.connect(config.mongo.uri, {
-        directConnection: true,
+        ...(isSrv ? {} : { directConnection: true }),
         minPoolSize: config.mongo.minPoolSize,
         maxPoolSize: config.mongo.maxPoolSize,
         socketTimeoutMS: config.mongo.socketTimeoutMS,
