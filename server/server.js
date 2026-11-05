@@ -66,6 +66,8 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
     hsts: config.isProduction
       ? {
           maxAge: 31536000,
@@ -118,7 +120,13 @@ app.use(
     origin(origin, callback) {
       // Same-origin, curl, and server-to-server requests have no Origin.
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) {
+      const isAllowed =
+        allowedOrigins.includes('*') ||
+        allowedOrigins.includes(origin) ||
+        isDevLocalOrigin(origin) ||
+        (typeof origin === 'string' && origin.endsWith('.vercel.app'));
+
+      if (isAllowed) {
         return callback(null, true);
       }
       return callback(null, false);

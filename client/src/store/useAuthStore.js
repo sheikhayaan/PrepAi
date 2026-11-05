@@ -20,6 +20,9 @@ export const useAuthStore = create((set) => ({
     try {
       set({ loading: true, error: null });
       const res = await api.post('/auth/login', { email, password });
+      if (res.data.token) {
+        localStorage.setItem('prepai_token', res.data.token);
+      }
       set({ user: res.data.user, loading: false, error: null });
       return { success: true };
     } catch (err) {
@@ -33,6 +36,9 @@ export const useAuthStore = create((set) => ({
     try {
       set({ loading: true, error: null });
       const res = await api.post('/auth/register', { name, email, password });
+      if (res.data.token) {
+        localStorage.setItem('prepai_token', res.data.token);
+      }
       set({ user: res.data.user, loading: false, error: null });
       return { success: true };
     } catch (err) {
@@ -46,6 +52,9 @@ export const useAuthStore = create((set) => ({
     try {
       set({ loading: true, error: null });
       const res = await api.post('/auth/google', { credential, profile });
+      if (res.data.token) {
+        localStorage.setItem('prepai_token', res.data.token);
+      }
       set({ user: res.data.user, loading: false, error: null });
       return { success: true };
     } catch (err) {
@@ -57,9 +66,11 @@ export const useAuthStore = create((set) => ({
 
   logout: async () => {
     try {
+      localStorage.removeItem('prepai_token');
       await api.post('/auth/logout');
       set({ user: null, error: null });
     } catch (err) {
+      localStorage.removeItem('prepai_token');
       set({ user: null });
     }
   },
