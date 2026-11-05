@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '../api/client';
+import api, { API_BASE_URL } from '../api/client';
 
 export const useInterviewStore = create((set, get) => ({
   session: null,
@@ -66,7 +66,8 @@ export const useInterviewStore = create((set, get) => ({
       }
       set({ session: { ...session, turns: updatedTurns } });
 
-      const response = await fetch(`/api/interviews/${session._id}/answer`, {
+      const answerUrl = `${API_BASE_URL ? API_BASE_URL : ''}/api/interviews/${session._id}/answer`;
+      const response = await fetch(answerUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
