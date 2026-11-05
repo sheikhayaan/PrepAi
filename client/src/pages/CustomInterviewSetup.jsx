@@ -139,7 +139,7 @@ export default function CustomInterviewSetup() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-bg py-10 px-4 sm:px-6 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] bg-bg py-10 px-4 sm:px-6 relative overflow-x-hidden">
       {/* Ambient background glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-accent/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 

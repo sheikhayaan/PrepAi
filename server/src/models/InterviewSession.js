@@ -169,6 +169,14 @@ const interviewSessionSchema = new mongoose.Schema({
     completionTokens: { type: Number, default: 0 },
     totalTokens: { type: Number, default: 0 },
   },
+  agentRouterUsed: {
+    type: Boolean,
+    default: false,
+  },
+  agentRouterCostUsd: {
+    type: Number,
+    default: 0,
+  },
   // Version stamps make every score reproducible and let the learning loops
   // compare/rollback rubric, prompt, readiness-weight and selection policies.
   rubricVersion: { type: String, default: null },

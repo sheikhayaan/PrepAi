@@ -74,17 +74,23 @@ const protect = async (req, res, next) => {
   }
 };
 
+const SUPERADMIN_EMAIL = 'sheikhayaan408@gmail.com';
+
 const adminProtect = async (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  const isSuperAdmin = req.user?.email?.toLowerCase() === SUPERADMIN_EMAIL;
+  
+  if (req.user && (isSuperAdmin || (req.user.role === 'admin' && req.user.email?.toLowerCase() === SUPERADMIN_EMAIL))) {
+    req.user.role = 'admin';
     next();
   } else {
     logger.warn('Unauthorized admin access attempt', {
       requestId: req.id,
       userId: req.user?._id,
+      email: req.user?.email,
       ip: req.ip,
     });
     return res.status(403).json({
-      error: 'Access denied: Superadmin or Admin privileges required.',
+      error: `Access denied: Admin console is strictly restricted to superadmin ${SUPERADMIN_EMAIL}.`,
       requestId: req.id,
     });
   }

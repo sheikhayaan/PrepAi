@@ -9,7 +9,7 @@ export default function LoginPage() {
   const location = useLocation();
   const { login, error, clearError, loading } = useAuthStore();
 
-  const [email, setEmail] = useState('ayaan@dtu.ac.in');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 

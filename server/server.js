@@ -24,6 +24,8 @@ const llmResilience = require('./src/services/llmResilience');
 const tokenBudget = require('./src/services/tokenBudget');
 const { isLlmEnabled } = require('./src/services/anthropicClient');
 const learningScheduler = require('./src/learning/scheduler');
+const telemetryTracker = require('./src/utils/telemetryTracker');
+const agentRouter = require('./src/services/agentRouter');
 
 // Initialize Express application
 const app = express();
@@ -152,7 +154,19 @@ function safeTokenEquals(provided, expected) {
 
 // 8. Health, Readiness & Metrics Endpoints
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()), requestId: req.id });
+  const dbConnected = mongoose.connection.readyState === 1;
+  const summary = telemetryTracker.getSummary();
+  res.status(200).json({
+    status: 'ok',
+    database: dbConnected ? 'connected' : 'disconnected',
+    latency: {
+      p50: summary.latency.p50Ms,
+      p95: summary.latency.p95Ms,
+      p99: summary.latency.p99Ms,
+    },
+    uptime: Math.floor(process.uptime()),
+    requestId: req.id,
+  });
 });
 
 app.get('/health/live', (req, res) => {
@@ -171,7 +185,9 @@ app.get('/health/ready', async (req, res) => {
       // gate: the API deliberately degrades to per-process state.
       redis: redis.ready ? 'connected' : redis.enabled ? 'degraded' : 'disabled',
       llm: isLlmEnabled() ? 'enabled' : 'simulation',
+      agentRouter: agentRouter.getRouterHealth().status,
     },
+    agentRouter: agentRouter.getRouterHealth(),
     sse: connectionRegistry.getConnectionStats(),
     llmQueue: llmResilience.llmLimiter.stats(),
     tokenBudget: tokenBudget.getCaps(),

@@ -315,7 +315,7 @@ export default function InterviewPage() {
   const rubricList = RUBRIC_DESCRIPTIONS[session?.type] || RUBRIC_DESCRIPTIONS.dsa;
 
   return (
-    <div className="relative min-h-screen bg-[#07090e] text-slate-100 flex flex-col overflow-hidden font-sans selection:bg-indigo-500/30">
+    <div className="relative min-h-screen bg-[#07090e] text-slate-100 flex flex-col overflow-x-hidden font-sans selection:bg-indigo-500/30">
 
       {/* ─────────────────────────────────────────────────────────────
           ZONE 1: TOP BAR (Fixed, Minimal)
@@ -388,7 +388,7 @@ export default function InterviewPage() {
       {/* ─────────────────────────────────────────────────────────────
           ZONE 2: PRIMARY STAGE (Dynamic Swapping, Single Focus)
       ───────────────────────────────────────────────────────────── */}
-      <main className="flex-1 relative flex flex-col p-4 md:p-6 max-w-7xl w-full mx-auto overflow-hidden">
+      <main className="flex-1 relative flex flex-col p-4 md:p-6 max-w-7xl w-full mx-auto overflow-y-auto">
 
         {/* MODE A: NON-CODING INTERVIEWS (Behavioral, HR, Case, PM, Sales, Managerial, System Design) */}
         {!isDsaMode ? (
@@ -568,12 +568,12 @@ export default function InterviewPage() {
                   <select
                     value={selectedLanguage}
                     onChange={(e) => setSelectedLanguage(e.target.value)}
-                    className="bg-white/[0.06] text-xs font-medium text-slate-200 border border-white/[0.08] rounded px-2.5 py-1 focus:outline-none focus:border-indigo-500"
+                    className="bg-slate-900 text-xs font-medium text-slate-200 border border-white/[0.08] rounded px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="javascript">JavaScript (Node.js)</option>
-                    <option value="python">Python 3</option>
-                    <option value="cpp">C++ 20</option>
-                    <option value="java">Java 17</option>
+                    <option value="javascript" className="bg-slate-900 text-slate-100">JavaScript (Node.js)</option>
+                    <option value="python" className="bg-slate-900 text-slate-100">Python 3</option>
+                    <option value="cpp" className="bg-slate-900 text-slate-100">C++ 20</option>
+                    <option value="java" className="bg-slate-900 text-slate-100">Java 17</option>
                   </select>
                   <button
                     onClick={() => setCodeSnippet(`function solution(input) {\n  // Write your solution here\n  return input;\n}`)}

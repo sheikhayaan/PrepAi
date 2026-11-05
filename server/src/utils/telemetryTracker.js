@@ -89,6 +89,10 @@ class TelemetryTracker {
       activeInterviewsCount: this.activeInterviewsCount,
     };
   }
+
+  getSummary() {
+    return this.getSnapshot();
+  }
 }
 
 const tracker = new TelemetryTracker(1000);

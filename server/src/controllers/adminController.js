@@ -7,6 +7,9 @@ const AuditLog = require('../models/AuditLog');
 const SecurityAlert = require('../models/SecurityAlert');
 const telemetryTracker = require('../utils/telemetryTracker');
 const logger = require('../utils/logger');
+const agentRouter = require('../services/agentRouter');
+const incidentTracker = require('../utils/incidentTracker');
+const selfHealingService = require('../services/selfHealingService');
 
 // Helper for admin re-authentication on sensitive actions
 async function verifyAdminPassword(adminUser, password) {
@@ -74,6 +77,9 @@ const getAdminOverview = async (req, res) => {
 
     // Live Telemetry Snapshot
     const telemetry = telemetryTracker.getSnapshot();
+    const routerHealth = agentRouter.getRouterHealth();
+    const incidentStats = incidentTracker.getStats();
+    const recentIncidents = incidentTracker.getIncidents({ limit: 10 });
 
     return res.json({
       metrics: {
@@ -89,6 +95,11 @@ const getAdminOverview = async (req, res) => {
         ratingsMetrics,
       },
       telemetry,
+      agentRouter: routerHealth,
+      incidents: {
+        stats: incidentStats,
+        recent: recentIncidents,
+      },
       charts: {
         companyDistribution,
       },
@@ -132,8 +143,38 @@ const getAdminUsers = async (req, res) => {
       User.countDocuments(query),
     ]);
 
+    const enrichedUsers = await Promise.all(
+      users.map(async (u) => {
+        const uObj = u.toObject();
+        try {
+          const [sessionCount, scoreAgg, ratingAgg] = await Promise.all([
+            InterviewSession.countDocuments({ userId: u._id }),
+            InterviewSession.aggregate([
+              { $match: { userId: u._id, status: 'completed', 'finalScore.overall': { $gt: 0 } } },
+              { $group: { _id: null, avgScore: { $avg: '$finalScore.overall' } } },
+            ]),
+            Rating.aggregate([
+              { $match: { userId: u._id } },
+              { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } },
+            ]),
+          ]);
+
+          uObj.interviewsCount = sessionCount;
+          uObj.averageScore = scoreAgg.length > 0 ? Math.round(scoreAgg[0].avgScore) : null;
+          uObj.ratingScore = ratingAgg.length > 0 ? parseFloat(ratingAgg[0].avgRating.toFixed(1)) : null;
+          uObj.ratingsCount = ratingAgg.length > 0 ? ratingAgg[0].count : 0;
+        } catch {
+          uObj.interviewsCount = 0;
+          uObj.averageScore = null;
+          uObj.ratingScore = null;
+          uObj.ratingsCount = 0;
+        }
+        return uObj;
+      })
+    );
+
     return res.json({
-      users,
+      users: enrichedUsers,
       pagination: {
         total,
         page: pageNum,
@@ -489,6 +530,8 @@ const getSystemHealth = async (req, res) => {
         host: mongoose.connection.host || '127.0.0.1',
         port: mongoose.connection.port || 27017,
       },
+      agentRouter: agentRouter.getRouterHealth(),
+      incidents: incidentTracker.getStats(),
       telemetry: telemetryTracker.getSnapshot(),
       requestId: req.id,
     };
@@ -496,6 +539,64 @@ const getSystemHealth = async (req, res) => {
     return res.json(healthData);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch system health', requestId: req.id });
+  }
+};
+
+// GET /api/admin/incidents
+const getAdminIncidents = async (req, res) => {
+  try {
+    const { category, severity, unresolvedOnly, limit } = req.query;
+    const incidents = incidentTracker.getIncidents({
+      category,
+      severity,
+      unresolvedOnly: unresolvedOnly === 'true',
+      limit: parseInt(limit, 10) || 50,
+    });
+    const stats = incidentTracker.getStats();
+    return res.json({ incidents, stats, requestId: req.id });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch incident log', requestId: req.id });
+  }
+};
+
+// POST /api/admin/incidents/:id/resolve
+const resolveIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    const resolved = incidentTracker.resolveIncident(id, notes);
+    if (!resolved) {
+      return res.status(404).json({ error: 'Incident not found or already resolved', requestId: req.id });
+    }
+    return res.json({ success: true, incident: resolved, requestId: req.id });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to resolve incident', requestId: req.id });
+  }
+};
+
+// POST /api/admin/self-heal
+const triggerSelfHealing = async (req, res) => {
+  try {
+    const adminEmail = req.user?.email || 'sheikhayaan408@gmail.com';
+    const report = await selfHealingService.runComprehensiveSelfHealing(adminEmail);
+    return res.json(report);
+  } catch (error) {
+    logger.error('Autonomous self-healing failed', { requestId: req.id, error: error.message });
+    return res.status(500).json({ error: 'Self-healing routine error: ' + error.message, requestId: req.id });
+  }
+};
+
+// POST /api/admin/incidents/:id/self-solve
+const selfSolveIncident = async (req, res) => {
+  try {
+    const adminEmail = req.user?.email || 'sheikhayaan408@gmail.com';
+    const result = await selfHealingService.selfSolveIncident(req.params.id, adminEmail);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message, requestId: req.id });
   }
 };
 
@@ -513,4 +614,8 @@ module.exports = {
   exportAuditLogsCsv,
   getAdminRatings,
   getSystemHealth,
+  getAdminIncidents,
+  resolveIncident,
+  triggerSelfHealing,
+  selfSolveIncident,
 };

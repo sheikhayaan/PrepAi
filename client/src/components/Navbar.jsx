@@ -66,7 +66,7 @@ export default function Navbar() {
           },
         ]
       : []),
-    ...(user?.role === 'admin'
+    ...(user?.email?.toLowerCase() === 'sheikhayaan408@gmail.com'
       ? [
           {
             id: 'admin',
@@ -173,8 +173,8 @@ export default function Navbar() {
             <div className="px-4 py-2 border-b border-white/10">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-white truncate">{user.name}</p>
-                {user.role === 'admin' && (
-                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold">ADMIN</span>
+                {user?.email?.toLowerCase() === 'sheikhayaan408@gmail.com' && (
+                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold">SUPERADMIN</span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
@@ -209,7 +209,7 @@ export default function Navbar() {
               <Sliders className="w-3.5 h-3.5 text-blue-400" />
               Custom Builder
             </button>
-            {user.role === 'admin' && (
+            {user?.email?.toLowerCase() === 'sheikhayaan408@gmail.com' && (
               <button
                 onClick={() => {
                   setDropdownOpen(false);

@@ -8,8 +8,8 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { register, error, clearError, loading } = useAuthStore();
 
-  const [name, setName] = useState('Mohd Ayaan');
-  const [email, setEmail] = useState('ayaan@dtu.ac.in');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -65,7 +65,7 @@ export default function RegisterPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Mohd Ayaan"
+                placeholder="John Doe"
                 className="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 focus:outline-none"
               />
             </div>
@@ -81,7 +81,7 @@ export default function RegisterPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="ayaan@dtu.ac.in"
+                placeholder="name@example.com"
                 className="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 focus:outline-none"
               />
             </div>

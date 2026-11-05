@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'candidate', 'admin'],
     default: 'user',
     index: true,
   },
@@ -132,6 +132,10 @@ const userSchema = new mongoose.Schema({
     totalRequests: { type: Number, default: 0 },
     totalTokens: { type: Number, default: 0 },
     estimatedCostUsd: { type: Number, default: 0 },
+  },
+  agentRouterInterviewsCount: {
+    type: Number,
+    default: 0,
   },
   createdAt: {
     type: Date,

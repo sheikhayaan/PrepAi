@@ -56,7 +56,8 @@ function AdminRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.role !== 'admin') {
+  const isSuperAdmin = user.email?.toLowerCase() === 'sheikhayaan408@gmail.com';
+  if (!isSuperAdmin) {
     return <Navigate to="/403" state={{ from: location }} replace />;
   }
 

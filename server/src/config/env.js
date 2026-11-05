@@ -9,6 +9,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 dotenv.config();
 
@@ -82,6 +83,24 @@ const config = {
   anthropic: {
     apiKey: strEnv('ANTHROPIC_API_KEY'),
     model: strEnv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
+  },
+
+  agentRouter: {
+    enabled: boolEnv('AGENT_ROUTER_ENABLED', true),
+    provider: strEnv('AGENT_ROUTER_PROVIDER', 'openai'),
+    apiKey: strEnv('AGENT_ROUTER_API_KEY', strEnv('OPENAI_API_KEY')),
+    model: strEnv('AGENT_ROUTER_MODEL', 'gpt 6 astra'),
+    baseUrl: strEnv('AGENT_ROUTER_BASE_URL', 'https://agentrouter.org').replace(/\/+$/, ''),
+    timeoutMs: intEnv('AGENT_ROUTER_TIMEOUT_MS', 15000, { min: 1000, max: 60000 }),
+    maxInterviewsPerUser: intEnv('AGENT_ROUTER_MAX_INTERVIEWS_PER_USER', 1, { min: 1, max: 100 }),
+    maxSessionCostUsd: parseFloat(process.env.AGENT_ROUTER_MAX_SESSION_COST_USD || '0.0001'),
+  },
+
+  gemini: {
+    enabled: boolEnv('GEMINI_ENABLED', true),
+    apiKey: strEnv('GEMINI_API_KEY', ''),
+    model: strEnv('GEMINI_MODEL', 'gemini-2.5-flash'),
+    timeoutMs: intEnv('GEMINI_TIMEOUT_MS', 15000, { min: 1000, max: 60000 }),
   },
 
   timeouts: {

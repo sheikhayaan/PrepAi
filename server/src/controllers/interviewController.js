@@ -19,6 +19,7 @@ const featureStore = require('../learning/featureStore');
 const selectionPolicy = require('../learning/selectionPolicy');
 const { getPersonalization } = require('../learning/personalization');
 const logger = require('../utils/logger');
+const agentRouter = require('../services/agentRouter');
 
 const VALID_INTERVIEW_TYPES = [
   'dsa',
@@ -72,9 +73,9 @@ const startInterview = async (req, res, next) => {
     const cleanCompany = customConfig?.targetCompany || sanitizeInput(targetCompany, 100) || 'Google / Meta / FAANG';
     const cleanSeniority = customConfig?.role || sanitizeInput(seniorityLevel, 100) || 'L5 (Senior)';
 
-    // 1. Try to dynamically generate tailor-made opening question via Anthropic Claude 3.5 Sonnet
-    let initialPrompt = await generateOpeningQuestion({
-      sessionType: type,
+    // 1. Generate opening question via Multi-Tier Agent Router (GPT-4o/Astra -> Claude 3.5 Sonnet -> QuestionBank)
+    const routedOutcome = await agentRouter.generateQuestion({
+      type,
       companyTier,
       targetCompany: cleanCompany,
       seniorityLevel: cleanSeniority,
@@ -83,6 +84,7 @@ const startInterview = async (req, res, next) => {
       userId: req.user._id,
       requestId: req.id,
     });
+    let initialPrompt = routedOutcome?.question || null;
 
     // 2. If Anthropic is offline or no key, pick a calibrated question from the
     // bank. When adaptive selection is enabled the item is chosen by the Loop A
@@ -163,6 +165,8 @@ const startInterview = async (req, res, next) => {
       weightsVersion: config.learning.enabled ? 'pending' : 'static-v1',
       selectionPolicyVersion,
       correlationId: req.id,
+      agentRouterUsed: Boolean(routedOutcome?.agentRouterUsed),
+      agentRouterCostUsd: Number(routedOutcome?.costUsd || 0),
       tokenUsage: { promptTokens: 60, completionTokens: Math.ceil(initialPrompt.length / 4), totalTokens: 60 + Math.ceil(initialPrompt.length / 4) },
       turns: [
         {
@@ -329,13 +333,14 @@ const submitAnswer = async (req, res, next) => {
         // Score turn silently and deterministically, extracting topic tags for
         // the learning loops. Failure here must not block the next question.
         try {
-          const turnScoreResult = await scoreTurnWithTool({
+          const turnScoreResult = await agentRouter.scoreTurn({
             sessionType: session.type,
+            companyTier: session.companyTier,
+            targetCompany: session.targetCompany,
+            seniorityLevel: session.seniorityLevel,
+            customConfig: session.customConfig,
             question: session.turns[currentTurnIndex].question,
             answer: cleanAnswer,
-            seniorityLevel: session.seniorityLevel,
-            targetCompany: session.targetCompany,
-            customConfig: session.customConfig,
             userId: req.user._id,
             sessionId: String(session._id),
             requestId: req.id,

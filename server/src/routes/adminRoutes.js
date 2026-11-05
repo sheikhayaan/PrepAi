@@ -14,6 +14,10 @@ const {
   exportAuditLogsCsv,
   getAdminRatings,
   getSystemHealth,
+  getAdminIncidents,
+  resolveIncident,
+  triggerSelfHealing,
+  selfSolveIncident,
 } = require('../controllers/adminController');
 const { protect, adminProtect } = require('../middleware/authMiddleware');
 const { adminLimiter } = require('../middleware/rateLimiter');
@@ -42,6 +46,10 @@ router.get('/audit-logs/export', exportAuditLogsCsv);
 
 router.get('/ratings', getAdminRatings);
 router.get('/health', getSystemHealth);
+router.get('/incidents', getAdminIncidents);
+router.post('/incidents/:id/resolve', resolveIncident);
+router.post('/incidents/:id/self-solve', selfSolveIncident);
+router.post('/self-heal', triggerSelfHealing);
 
 // Learning-loop control plane (versioned, human-gated artifacts).
 router.use('/learning', require('./learningRoutes'));

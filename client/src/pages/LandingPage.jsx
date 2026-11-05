@@ -40,7 +40,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#030407] text-text-primary overflow-hidden">
+    <div className="relative min-h-screen bg-[#030407] text-text-primary overflow-x-hidden">
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden shader-frame">
         <LaserCollection
           speed={1.00}

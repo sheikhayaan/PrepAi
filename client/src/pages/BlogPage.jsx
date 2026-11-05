@@ -111,7 +111,7 @@ High-performing candidates invert this ratio:
   });
 
   return (
-    <div className="relative min-h-screen bg-bg text-text-primary px-4 sm:px-6 lg:px-8 py-16 overflow-hidden">
+    <div className="relative min-h-screen bg-bg text-text-primary px-4 sm:px-6 lg:px-8 py-16 overflow-x-hidden">
       <AuroraBackground showHorizon={true} />
 
       <div className="max-w-7xl mx-auto relative z-10 space-y-12">
