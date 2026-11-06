@@ -37,6 +37,10 @@ const turnSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  modelAnswer: {
+    type: String,
+    default: '',
+  },
   followUp: {
     type: Boolean,
     default: false,

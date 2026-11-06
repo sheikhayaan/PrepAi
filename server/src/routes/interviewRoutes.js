@@ -7,6 +7,7 @@ const {
   completeInterview,
   getUserInterviews,
   getQuestions,
+  getTurnModelAnswer,
 } = require('../controllers/interviewController');
 const { protect } = require('../middleware/authMiddleware');
 const { interviewStartLimiter, interviewAnswerLimiter } = require('../middleware/rateLimiter');
@@ -18,6 +19,7 @@ router.use(protect); // All session execution routes are protected
 router.post('/start', interviewStartLimiter, startInterview);
 router.get('/', getUserInterviews);
 router.get('/:id', getInterview);
+router.get('/:id/turns/:turnIndex/model-answer', getTurnModelAnswer);
 router.post('/:id/answer', interviewAnswerLimiter, submitAnswer);
 router.post('/:id/complete', completeInterview);
 

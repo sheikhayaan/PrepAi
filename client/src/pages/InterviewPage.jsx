@@ -21,6 +21,8 @@ import {
   Terminal,
   Clock,
   Layers,
+  BookOpen,
+  Loader2,
 } from 'lucide-react';
 
 const INTERVIEW_TYPE_TITLES = {
@@ -85,6 +87,7 @@ export default function InterviewPage() {
     loadInterview,
     submitAnswer,
     completeInterview,
+    fetchTurnModelAnswer,
     isStreaming,
     streamedText,
     error,
@@ -101,8 +104,9 @@ export default function InterviewPage() {
   const [isTTSEnabled, setIsTTSEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [loadingModelAnswerIdx, setLoadingModelAnswerIdx] = useState(null);
 
-  // Active drawer for Utility Rail (null | 'rubric' | 'history' | 'scratchpad' | 'info')
+  // Active drawer for Utility Rail (null | 'rubric' | 'history' | 'scratchpad' | 'info' | 'solution')
   const [activeDrawer, setActiveDrawer] = useState(null);
 
   // Coding environment states (for DSA mode)
@@ -683,6 +687,18 @@ export default function InterviewPage() {
           </button>
 
           <button
+            onClick={() => setActiveDrawer(activeDrawer === 'solution' ? null : 'solution')}
+            className={`p-2.5 rounded-xl transition-all ${
+              activeDrawer === 'solution'
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+            }`}
+            title="Official Model Answer & Solution"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => setActiveDrawer(activeDrawer === 'info' ? null : 'info')}
             className={`p-2.5 rounded-xl transition-all ${
               activeDrawer === 'info'
@@ -711,11 +727,13 @@ export default function InterviewPage() {
             {/* Drawer Header */}
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
               <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                {activeDrawer === 'solution' && <BookOpen className="w-4 h-4 text-emerald-400" />}
                 {activeDrawer === 'rubric' && <BarChart2 className="w-4 h-4 text-indigo-400" />}
                 {activeDrawer === 'history' && <Layers className="w-4 h-4 text-indigo-400" />}
                 {activeDrawer === 'scratchpad' && <FileText className="w-4 h-4 text-indigo-400" />}
                 {activeDrawer === 'info' && <SettingsIcon className="w-4 h-4 text-indigo-400" />}
                 <span>
+                  {activeDrawer === 'solution' && 'Model Solution Guide'}
                   {activeDrawer === 'rubric' && 'Scoring Rubric Dimensions'}
                   {activeDrawer === 'history' && 'Session Transcript'}
                   {activeDrawer === 'scratchpad' && 'Candidate Scratchpad'}
@@ -732,6 +750,68 @@ export default function InterviewPage() {
 
             {/* Drawer Body */}
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
+
+              {/* Solution & Model Answer View */}
+              {activeDrawer === 'solution' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl">
+                    <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                      Official Solution & Rubric
+                    </p>
+                    <p className="text-xs text-slate-300">
+                      Master evaluation walkthrough, optimal time/space complexity, and bar raiser criteria for this question.
+                    </p>
+                  </div>
+
+                  {session?.turns?.map((turn, idx) => (
+                    <div key={idx} className="p-3.5 bg-white/[0.02] border border-white/[0.08] rounded-xl space-y-2.5">
+                      <p className="text-[11px] font-bold text-indigo-300">
+                        Turn {idx + 1} Question:
+                      </p>
+                      <p className="text-xs text-slate-300 line-clamp-3">
+                        {turn.question}
+                      </p>
+
+                      <div className="pt-2 border-t border-white/[0.06] text-xs">
+                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Expected Model Answer:
+                        </p>
+                        {turn.modelAnswer ? (
+                          <div className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto p-2.5 rounded-lg bg-black/40 border border-white/[0.04]">
+                            {turn.modelAnswer}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              try {
+                                setLoadingModelAnswerIdx(idx);
+                                await fetchTurnModelAnswer(idx);
+                              } finally {
+                                setLoadingModelAnswerIdx(null);
+                              }
+                            }}
+                            disabled={loadingModelAnswerIdx === idx}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            {loadingModelAnswerIdx === idx ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Generating Solution...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Reveal Model Solution</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Rubric View */}
               {activeDrawer === 'rubric' && (

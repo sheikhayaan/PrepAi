@@ -20,6 +20,7 @@ const selectionPolicy = require('../learning/selectionPolicy');
 const { getPersonalization } = require('../learning/personalization');
 const logger = require('../utils/logger');
 const agentRouter = require('../services/agentRouter');
+const geminiClient = require('../services/geminiClient');
 
 const VALID_INTERVIEW_TYPES = [
   'dsa',
@@ -43,6 +44,9 @@ const startInterview = async (req, res, next) => {
       targetCompany = 'Google / Meta / FAANG',
       seniorityLevel = 'L5 (Senior)',
       targetPackage = '$250k - $380k',
+      questionId = null,
+      initialPrompt: customInitialPrompt = null,
+      modelAnswer: customModelAnswer = null,
     } = req.body;
 
     if (!VALID_INTERVIEW_TYPES.includes(type)) {
@@ -73,23 +77,44 @@ const startInterview = async (req, res, next) => {
     const cleanCompany = customConfig?.targetCompany || sanitizeInput(targetCompany, 100) || 'Google / Meta / FAANG';
     const cleanSeniority = customConfig?.role || sanitizeInput(seniorityLevel, 100) || 'L5 (Senior)';
 
-    // 1. Generate opening question via Multi-Tier Agent Router (GPT-4o/Astra -> Claude 3.5 Sonnet -> QuestionBank)
-    const routedOutcome = await agentRouter.generateQuestion({
-      type,
-      companyTier,
-      targetCompany: cleanCompany,
-      seniorityLevel: cleanSeniority,
-      targetPackage,
-      customConfig,
-      userId: req.user._id,
-      requestId: req.id,
-    });
-    let initialPrompt = routedOutcome?.question || null;
-
-    // 2. If Anthropic is offline or no key, pick a calibrated question from the
-    // bank. When adaptive selection is enabled the item is chosen by the Loop A
-    // policy (Elo difficulty targeting + exploration floor), otherwise random.
     let selectedQuestionId = null;
+    let initialPrompt = null;
+    let initialModelAnswer = '';
+
+    // Direct practice from Question Bank: use the explicitly chosen question
+    if (questionId) {
+      try {
+        const chosen = await QuestionBank.findById(questionId).lean();
+        if (chosen) {
+          initialPrompt = chosen.prompt;
+          selectedQuestionId = String(chosen._id);
+          initialModelAnswer = chosen.modelAnswer || '';
+        }
+      } catch (err) {
+        logger.warn('Failed to find chosen questionId', { error: err.message });
+      }
+    } else if (customInitialPrompt) {
+      initialPrompt = sanitizeInput(customInitialPrompt, 1500);
+      initialModelAnswer = customModelAnswer || '';
+    }
+
+    // 1. Generate opening question via Multi-Tier Agent Router if not specifically chosen
+    let routedOutcome = null;
+    if (!initialPrompt) {
+      routedOutcome = await agentRouter.generateQuestion({
+        type,
+        companyTier,
+        targetCompany: cleanCompany,
+        seniorityLevel: cleanSeniority,
+        targetPackage,
+        customConfig,
+        userId: req.user._id,
+        requestId: req.id,
+      });
+      initialPrompt = routedOutcome?.question || null;
+    }
+
+    // 2. If dynamic generation was offline or skipped, pick a calibrated question from the bank
     let selectionPolicyVersion = 'static-v1';
     if (!initialPrompt) {
       let questions = await cache.getOrSet(`bank:${type}:all`, 300, () =>
@@ -181,6 +206,7 @@ const startInterview = async (req, res, next) => {
           questionId: selectedQuestionId || undefined,
           question: initialPrompt,
           answer: '',
+          modelAnswer: initialModelAnswer,
           followUp: false,
           timestamp: new Date(),
         },
@@ -391,63 +417,121 @@ const submitAnswer = async (req, res, next) => {
         recentScores,
       });
 
-      await streamAdaptiveQuestion({
-        sessionType: session.type,
-        companyTier: session.companyTier,
-        targetCompany: session.targetCompany,
-        seniorityLevel: session.seniorityLevel,
-        customConfig: session.customConfig,
-        turns: session.turns,
-        latestAnswer: cleanAnswer,
-        personalizationDirective: personalization.directive,
-        userId: req.user._id,
-        sessionId: String(session._id),
-        requestId: req.id,
-        onChunk: (chunk) => {
-          channel.publish({ type: 'chunk', text: chunk });
-        },
-        onDone: async (result) => {
-          const fullQuestion = String(
-            typeof result === 'object' ? result.fullResponse : result || ''
-          ).trim();
-          if (!fullQuestion) {
-            throw new Error('The question generator returned an empty response');
-          }
+      if (geminiClient.isConfigured()) {
+        await geminiClient.streamAdaptiveQuestion({
+          sessionType: session.type,
+          companyTier: session.companyTier,
+          targetCompany: session.targetCompany,
+          seniorityLevel: session.seniorityLevel,
+          customConfig: session.customConfig,
+          turns: session.turns,
+          latestAnswer: cleanAnswer,
+          onChunk: (chunk) => {
+            channel.publish({ type: 'chunk', text: chunk });
+          },
+          onDone: async (result) => {
+            const fullQuestion = String(
+              typeof result === 'object' ? result.fullResponse : result || ''
+            ).trim();
+            if (!fullQuestion) {
+              throw new Error('The question generator returned an empty response');
+            }
 
-          const tokens =
-            typeof result === 'object' && result.tokens
-              ? result.tokens
-              : { promptTokens: 100, completionTokens: 50 };
+            const tokens =
+              typeof result === 'object' && result.tokens
+                ? result.tokens
+                : { promptTokens: 100, completionTokens: 50 };
 
-          session.turns.push({
-            question: fullQuestion,
-            answer: '',
-            followUp: true,
-            timestamp: new Date(),
-          });
+            session.turns.push({
+              question: fullQuestion,
+              answer: '',
+              modelAnswer: '',
+              followUp: true,
+              timestamp: new Date(),
+            });
 
-          session.tokenUsage = {
-            promptTokens: (session.tokenUsage?.promptTokens || 0) + (tokens.promptTokens || 0),
-            completionTokens:
-              (session.tokenUsage?.completionTokens || 0) + (tokens.completionTokens || 0),
-            totalTokens:
-              (session.tokenUsage?.totalTokens || 0) +
-              (tokens.promptTokens || 0) +
-              (tokens.completionTokens || 0),
-          };
+            session.tokenUsage = {
+              promptTokens: (session.tokenUsage?.promptTokens || 0) + (tokens.promptTokens || 0),
+              completionTokens:
+                (session.tokenUsage?.completionTokens || 0) + (tokens.completionTokens || 0),
+              totalTokens:
+                (session.tokenUsage?.totalTokens || 0) +
+                (tokens.promptTokens || 0) +
+                (tokens.completionTokens || 0),
+            };
 
-          await session.save();
+            await session.save();
 
-          channel.complete({
-            type: 'done',
-            fullQuestion,
-            turnIndex: session.turns.length - 1,
-            fallback: Boolean(result?.fallback),
-            promptVersion: PROMPT_VERSION,
-            rubricVersion: RUBRIC_VERSION,
-          });
-        },
-      });
+            channel.complete({
+              type: 'done',
+              fullQuestion,
+              turnIndex: session.turns.length - 1,
+              fallback: Boolean(result?.fallback),
+              promptVersion: PROMPT_VERSION,
+              rubricVersion: RUBRIC_VERSION,
+            });
+          },
+        });
+      } else {
+        await streamAdaptiveQuestion({
+          sessionType: session.type,
+          companyTier: session.companyTier,
+          targetCompany: session.targetCompany,
+          seniorityLevel: session.seniorityLevel,
+          customConfig: session.customConfig,
+          turns: session.turns,
+          latestAnswer: cleanAnswer,
+          personalizationDirective: personalization.directive,
+          userId: req.user._id,
+          sessionId: String(session._id),
+          requestId: req.id,
+          onChunk: (chunk) => {
+            channel.publish({ type: 'chunk', text: chunk });
+          },
+          onDone: async (result) => {
+            const fullQuestion = String(
+              typeof result === 'object' ? result.fullResponse : result || ''
+            ).trim();
+            if (!fullQuestion) {
+              throw new Error('The question generator returned an empty response');
+            }
+
+            const tokens =
+              typeof result === 'object' && result.tokens
+                ? result.tokens
+                : { promptTokens: 100, completionTokens: 50 };
+
+            session.turns.push({
+              question: fullQuestion,
+              answer: '',
+              modelAnswer: '',
+              followUp: true,
+              timestamp: new Date(),
+            });
+
+            session.tokenUsage = {
+              promptTokens: (session.tokenUsage?.promptTokens || 0) + (tokens.promptTokens || 0),
+              completionTokens:
+                (session.tokenUsage?.completionTokens || 0) + (tokens.completionTokens || 0),
+              totalTokens:
+                (session.tokenUsage?.totalTokens || 0) +
+                (tokens.promptTokens || 0) +
+                (tokens.completionTokens || 0),
+            };
+
+            await session.save();
+
+            channel.complete({
+              type: 'done',
+              fullQuestion,
+              turnIndex: session.turns.length - 1,
+              fallback: Boolean(result?.fallback),
+              promptVersion: PROMPT_VERSION,
+              rubricVersion: RUBRIC_VERSION,
+            });
+          },
+        });
+      }
 
       if (!channel.completed) {
         channel.fail('The interview stream ended before completion.');
@@ -602,6 +686,61 @@ const getQuestions = async (req, res, next) => {
   }
 };
 
+// @desc   Get or dynamically generate detailed model answer for an interview turn
+// @route  GET /api/interviews/:id/turns/:turnIndex/model-answer
+// @access Private
+const getTurnModelAnswer = async (req, res, next) => {
+  try {
+    const { id, turnIndex } = req.params;
+    const idx = parseInt(turnIndex, 10);
+    const session = await InterviewSession.findOne({ _id: id, userId: req.user._id });
+    if (!session) {
+      return res.status(404).json({ error: 'Interview session not found' });
+    }
+
+    const turn = session.turns[idx];
+    if (!turn) {
+      return res.status(404).json({ error: 'Turn index not found' });
+    }
+
+    if (turn.modelAnswer && turn.modelAnswer.trim().length > 50) {
+      return res.json({ modelAnswer: turn.modelAnswer });
+    }
+
+    // Check QuestionBank if questionId is set
+    if (turn.questionId) {
+      const q = await QuestionBank.findById(turn.questionId).lean();
+      if (q && q.modelAnswer) {
+        turn.modelAnswer = q.modelAnswer;
+        await session.save();
+        return res.json({ modelAnswer: q.modelAnswer });
+      }
+    }
+
+    // Dynamically generate official model answer with Gemini
+    if (geminiClient.isConfigured()) {
+      const gen = await geminiClient.generateModelAnswer({
+        question: turn.question,
+        sessionType: session.type,
+        targetCompany: session.targetCompany,
+        seniorityLevel: session.seniorityLevel,
+      });
+
+      if (gen.ok && gen.modelAnswer) {
+        turn.modelAnswer = gen.modelAnswer;
+        await session.save();
+        return res.json({ modelAnswer: gen.modelAnswer });
+      }
+    }
+
+    const defaultAnswer = `### Optimal Solution & Strategy\n\nFor **${turn.question}**, the optimal approach focuses on achieving the best possible time and space complexity, handling all corner cases, and clearly communicating the architectural and algorithmic trade-offs.`;
+    return res.json({ modelAnswer: defaultAnswer });
+  } catch (error) {
+    logger.error('Get turn model answer error', { error });
+    next(error);
+  }
+};
+
 module.exports = {
   startInterview,
   submitAnswer,
@@ -609,4 +748,5 @@ module.exports = {
   completeInterview,
   getUserInterviews,
   getQuestions,
+  getTurnModelAnswer,
 };

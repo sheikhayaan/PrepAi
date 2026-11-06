@@ -35,6 +35,13 @@ const questionBankSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  modelAnswer: {
+    type: String,
+    default: '',
+  },
+  hints: [{
+    type: String,
+  }],
   tags: [{
     type: String,
   }],

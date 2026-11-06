@@ -21,15 +21,16 @@ const connectDB = async (retries = 3) => {
         console.error(`Index bootstrap failed: ${error.message}`)
       );
 
-      // Auto-bootstrap QuestionBank if database collection is empty
+      // Auto-bootstrap & sync QuestionBank if empty or updated
       const QuestionBank = require('../models/QuestionBank');
       const { questions } = require('./seed');
       QuestionBank.countDocuments()
         .then(async (count) => {
-          if (count === 0) {
-            console.log(`QuestionBank collection is empty. Auto-seeding ${questions.length} curated questions...`);
+          if (count < questions.length) {
+            console.log(`QuestionBank has ${count} items. Syncing with ${questions.length} rich curated questions with full model answers...`);
+            await QuestionBank.deleteMany({});
             await QuestionBank.insertMany(questions);
-            console.log(`✅ QuestionBank auto-seeded successfully with ${questions.length} curated questions!`);
+            console.log(`✅ QuestionBank synced successfully with ${questions.length} curated questions!`);
           } else {
             console.log(`QuestionBank verified: ${count} questions active.`);
           }

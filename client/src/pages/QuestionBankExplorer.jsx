@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useInterviewStore } from '../store/useInterviewStore';
+import { useAuthStore } from '../store/useAuthStore';
 import {
   Database,
   Search,
@@ -19,9 +20,14 @@ import {
   Briefcase,
   Play,
   RotateCcw,
+  BookOpen,
+  X,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
-const COMPANIES = ['All', 'Google', 'Meta', 'Amazon', 'Stripe', 'Microsoft', 'Uber', 'Apple', 'Netflix', 'Airbnb'];
+const COMPANIES = ['All', 'Google', 'Meta', 'Amazon', 'Stripe', 'Microsoft', 'Uber', 'Apple', 'Netflix', 'Airbnb', 'Discord', 'Datadog'];
 const LEVELS = ['All', 'L3', 'L4', 'L5', 'L6+'];
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 const TYPES = [
@@ -38,7 +44,8 @@ const TYPES = [
 
 export default function QuestionBankExplorer() {
   const navigate = useNavigate();
-  const { startInterview, loading: startingSession } = useInterviewStore();
+  const { user } = useAuthStore();
+  const { startInterview } = useInterviewStore();
 
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,8 +58,10 @@ export default function QuestionBankExplorer() {
   const [selectedType, setSelectedType] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Active question modal or launch state
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  // Practice & Modal states
+  const [launchingId, setLaunchingId] = useState(null);
+  const [launchError, setLaunchError] = useState(null);
+  const [solutionModalQuestion, setSolutionModalQuestion] = useState(null);
 
   const fetchQuestions = async () => {
     try {
@@ -94,14 +103,34 @@ export default function QuestionBankExplorer() {
   };
 
   const handlePracticeQuestion = async (q) => {
-    const res = await startInterview(q.type || 'dsa', {
-      targetCompany: (q.companyTags && q.companyTags[0]) || 'FAANG Enterprise',
-      seniorityLevel: q.level ? `${q.level} Engineer` : 'L5 (Senior)',
-      targetPackage: q.level === 'L6+' ? '$450k+' : q.level === 'L5' ? '$320k' : '$190k',
-    });
+    setLaunchError(null);
 
-    if (res.success && res.session) {
-      navigate(`/interview/${res.session._id}`);
+    // If candidate is not signed in, redirect to login
+    if (!user) {
+      navigate('/login?redirect=/questions');
+      return;
+    }
+
+    try {
+      setLaunchingId(q._id);
+      const res = await startInterview(q.type || 'dsa', {
+        questionId: q._id,
+        initialPrompt: q.prompt,
+        modelAnswer: q.modelAnswer || '',
+        targetCompany: (q.companyTags && q.companyTags[0]) || 'FAANG Enterprise',
+        seniorityLevel: q.level ? `${q.level} Engineer` : 'L5 (Senior)',
+        targetPackage: q.level === 'L6+' ? '$450k+' : q.level === 'L5' ? '$320k' : '$190k',
+      });
+
+      if (res.success && res.session) {
+        navigate(`/interview/${res.session._id}`);
+      } else {
+        setLaunchError(res.error || 'Failed to start interview session. Please try again.');
+      }
+    } catch (err) {
+      setLaunchError(err.message || 'An unexpected error occurred while launching interview.');
+    } finally {
+      setLaunchingId(null);
     }
   };
 
@@ -275,6 +304,21 @@ export default function QuestionBankExplorer() {
 
         {/* Results Count & Grid */}
         <div className="space-y-4">
+          {launchError && (
+            <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{launchError}</span>
+              </div>
+              <button
+                onClick={() => setLaunchError(null)}
+                className="text-red-400 hover:text-white text-xs font-semibold"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-xs text-text-muted">
             <span>
               Showing <strong className="text-white">{questions.length}</strong> questions matching criteria
@@ -314,6 +358,8 @@ export default function QuestionBankExplorer() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {questions.map((q) => {
                 const Icon = getTypeIcon(q.type);
+                const isLaunching = launchingId === q._id;
+
                 return (
                   <div
                     key={q._id}
@@ -368,18 +414,33 @@ export default function QuestionBankExplorer() {
                       </p>
                     </div>
 
-                    {/* Footer Action */}
-                    <div className="pt-4 mt-4 border-t border-hairline flex items-center justify-between">
-                      <span className="text-[10px] text-text-muted">
-                        Simulated AI Interview
-                      </span>
+                    {/* Footer Actions: View Solution + Practice */}
+                    <div className="pt-4 mt-4 border-t border-hairline flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => setSolutionModalQuestion(q)}
+                        className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-text-secondary hover:text-white border border-hairline text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+                        title="View detailed model answer and optimal approach"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-accent" />
+                        <span>Solution</span>
+                      </button>
+
                       <button
                         onClick={() => handlePracticeQuestion(q)}
-                        disabled={startingSession}
-                        className="px-3.5 py-1.5 rounded-lg bg-accent/20 hover:bg-accent text-accent hover:text-white border border-accent/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm group-hover:shadow-[0_0_10px_rgba(91,140,255,0.4)]"
+                        disabled={isLaunching}
+                        className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-accent/20 disabled:opacity-50"
                       >
-                        <Play className="w-3 h-3 fill-current" />
-                        Practice This
+                        {isLaunching ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Starting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Practice This</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -389,6 +450,98 @@ export default function QuestionBankExplorer() {
           )}
         </div>
       </div>
+
+      {/* Model Answer & Solution Modal */}
+      {solutionModalQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="glass-window max-w-3xl w-full max-h-[85vh] rounded-2xl border border-hairline shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-hairline flex items-start justify-between gap-4 bg-surface/80">
+              <div>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  {solutionModalQuestion.companyTags?.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 rounded-md bg-accent/20 text-accent border border-accent/30 text-[10px] font-bold"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
+                    {solutionModalQuestion.level || 'L5'}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${getDifficultyBadge(
+                      solutionModalQuestion.difficulty
+                    )}`}
+                  >
+                    {solutionModalQuestion.difficulty || 'Medium'}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white leading-snug">
+                  Official Model Solution & Rubric Guide
+                </h3>
+              </div>
+              <button
+                onClick={() => setSolutionModalQuestion(null)}
+                className="p-1.5 text-text-muted hover:text-white rounded-lg hover:bg-surface-hover cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
+              {/* Question Statement */}
+              <div className="p-4 rounded-xl bg-surface/60 border border-hairline space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-accent">
+                  Interview Challenge:
+                </p>
+                <p className="text-text-primary leading-relaxed font-medium">
+                  {solutionModalQuestion.prompt}
+                </p>
+              </div>
+
+              {/* Solution Content */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Bar Raiser Expected Approach & Walkthrough
+                </p>
+                <div className="p-4 rounded-xl bg-black/40 border border-hairline/60 text-text-secondary leading-relaxed space-y-3 whitespace-pre-wrap font-sans text-xs sm:text-sm">
+                  {solutionModalQuestion.modelAnswer || (
+                    <p className="text-text-muted italic">
+                      Optimal approach: Focus on trading auxiliary space for linear time complexity, communicating trade-offs cleanly, and actively addressing corner cases.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-hairline bg-surface/60 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setSolutionModalQuestion(null)}
+                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-hover text-text-secondary hover:text-white text-xs font-semibold border border-hairline cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const q = solutionModalQuestion;
+                  setSolutionModalQuestion(null);
+                  handlePracticeQuestion(q);
+                }}
+                disabled={launchingId === solutionModalQuestion._id}
+                className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-accent/20 cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                Practice This Question Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

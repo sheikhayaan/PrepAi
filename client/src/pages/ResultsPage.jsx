@@ -22,9 +22,9 @@ import {
 export default function ResultsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { session, loadInterview, loading } = useInterviewStore();
+  const { session, loadInterview, fetchTurnModelAnswer, loading } = useInterviewStore();
   const [animatedScore, setAnimatedScore] = useState(0);
-  const [activeTab, setActiveTab] = useState('evaluation'); // 'evaluation' | 'actionPlan' | 'transcript'
+  const [activeTab, setActiveTab] = useState('evaluation'); // 'evaluation' | 'actionPlan' | 'solutions' | 'transcript'
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
@@ -177,7 +177,7 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Tab Selector: Evaluation Summary vs 7-Day Action Plan vs Transcript */}
+          {/* Tab Selector: Evaluation Summary vs 7-Day Action Plan vs Solutions vs Transcript */}
           <div className="flex gap-2 p-1 bg-surface/90 border border-hairline rounded-xl mb-6">
             <button
               onClick={() => setActiveTab('evaluation')}
@@ -200,6 +200,16 @@ export default function ResultsPage() {
               7-Day Action Plan
             </button>
             <button
+              onClick={() => setActiveTab('solutions')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'solutions'
+                  ? 'bg-accent text-white shadow-[0_0_12px_rgba(91,140,255,0.4)]'
+                  : 'text-text-secondary hover:text-white'
+              }`}
+            >
+              Model Solutions
+            </button>
+            <button
               onClick={() => setActiveTab('transcript')}
               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'transcript'
@@ -207,7 +217,7 @@ export default function ResultsPage() {
                   : 'text-text-secondary hover:text-white'
               }`}
             >
-              Full Transcript History
+              Transcript
             </button>
           </div>
 
@@ -373,6 +383,66 @@ export default function ResultsPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'solutions' && (
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 animate-in fade-in duration-150">
+              <div className="p-4 rounded-2xl bg-surface/70 border border-hairline">
+                <h4 className="text-xs font-bold text-white flex items-center gap-2 mb-1">
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
+                  Official Model Answers & Strategy Guide
+                </h4>
+                <p className="text-xs text-text-secondary">
+                  Review the bar raiser expected approach, complexity bounds, and core architectural patterns for each question in this session.
+                </p>
+              </div>
+
+              {(session?.turns || []).map((turn, i) => (
+                <div key={i} className="p-4 bg-surface/60 rounded-xl border border-hairline space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-bold text-accent">Question {i + 1}</span>
+                    {turn.turnScore?.overall && (
+                      <span className="text-white font-bold px-2 py-0.5 rounded bg-surface border border-hairline text-[10px]">
+                        Turn Score: {turn.turnScore.overall}/10
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-text-primary font-medium">{turn.question}</p>
+
+                  {turn.answer && (
+                    <div className="p-3 bg-black/40 rounded-lg border border-hairline/40 text-xs text-text-secondary">
+                      <strong className="text-white">Your Answer:</strong> {turn.answer}
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-hairline/60">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 mb-2">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Interviewer Model Answer & Rubric:
+                    </p>
+                    {turn.modelAnswer ? (
+                      <div className="p-3.5 bg-black/50 rounded-xl border border-hairline/60 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
+                        {turn.modelAnswer}
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-lg bg-surface/40 border border-hairline/40 text-xs text-text-muted flex items-center justify-between gap-3">
+                        <span>Click to reveal the official Bar Raiser model solution.</span>
+                        <button
+                          onClick={async () => {
+                            await fetchTurnModelAnswer(i);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Reveal Solution
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

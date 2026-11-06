@@ -25,6 +25,9 @@ export const useInterviewStore = create((set, get) => ({
         seniorityLevel: options.seniorityLevel || 'L5 (Senior)',
         targetPackage: options.targetPackage || '$250k - $380k',
         customConfig: options.customConfig || undefined,
+        questionId: options.questionId || undefined,
+        initialPrompt: options.initialPrompt || undefined,
+        modelAnswer: options.modelAnswer || undefined,
       });
       set({ session: res.data.session, loading: false });
       get().startTimer();
@@ -47,6 +50,27 @@ export const useInterviewStore = create((set, get) => ({
       const errorMsg = err.response?.data?.error || 'Failed to load interview.';
       set({ loading: false, error: errorMsg });
       return { success: false, error: errorMsg };
+    }
+  },
+
+  // Fetch or dynamically generate official model answer for a turn
+  fetchTurnModelAnswer: async (turnIndex) => {
+    const { session } = get();
+    if (!session?._id) return null;
+    try {
+      const res = await api.get(`/interviews/${session._id}/turns/${turnIndex}/model-answer`);
+      if (res.data?.modelAnswer) {
+        const updatedTurns = [...session.turns];
+        if (updatedTurns[turnIndex]) {
+          updatedTurns[turnIndex].modelAnswer = res.data.modelAnswer;
+          set({ session: { ...session, turns: updatedTurns } });
+        }
+        return res.data.modelAnswer;
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to fetch turn model answer:', err);
+      return null;
     }
   },
 
