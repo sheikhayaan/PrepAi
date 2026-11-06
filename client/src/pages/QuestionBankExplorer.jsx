@@ -27,7 +27,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-const COMPANIES = ['All', 'Google', 'Meta', 'Amazon', 'Stripe', 'Microsoft', 'Uber', 'Apple', 'Netflix', 'Airbnb', 'Discord', 'Datadog'];
+const COMPANIES = ['All', 'Google', 'Meta', 'Amazon', 'Stripe', 'Microsoft', 'Uber', 'Apple', 'Netflix', 'Airbnb', 'OpenAI', 'Databricks', 'Snowflake', 'Palantir', 'Coinbase', 'ByteDance', 'Salesforce'];
 const LEVELS = ['All', 'L3', 'L4', 'L5', 'L6+'];
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 const TYPES = [
@@ -68,7 +68,7 @@ export default function QuestionBankExplorer() {
       setLoading(true);
       setError(null);
 
-      const params = {};
+      const params = { limit: 500 };
       if (selectedCompany !== 'All') params.company = selectedCompany;
       if (selectedLevel !== 'All') params.level = selectedLevel;
       if (selectedDifficulty !== 'All') params.difficulty = selectedDifficulty;

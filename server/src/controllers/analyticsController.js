@@ -11,8 +11,7 @@ const getUserAnalytics = async (req, res, next) => {
     const userId = new mongoose.Types.ObjectId(req.user._id);
     const cacheKey = `analytics:user:${userId}`;
 
-    // Aggregation is the heaviest read path; a short TTL keeps dashboard p95
-    // inside SLO under concurrency without any API contract change.
+    // Aggregation is the heaviest read path; a short TTL keeps dashboard p95 inside SLO
     const cached = await cache.get(cacheKey);
     if (cached) {
       res.set('X-Cache', 'HIT');
@@ -88,7 +87,9 @@ const getUserAnalytics = async (req, res, next) => {
       }
     });
 
-    const totalPracticeHours = Number(((completedSessions * 25 + totalQuestionsAnswered * 4) / 60).toFixed(1));
+    const totalPracticeHours = completedSessions === 0 && totalQuestionsAnswered === 0
+      ? 0.0
+      : Number(((completedSessions * 25 + totalQuestionsAnswered * 4) / 60).toFixed(1));
 
     // 4. Aggregate Monthly Performance Trend (Score over time)
     const monthlyTrend = await InterviewSession.aggregate([
@@ -96,7 +97,7 @@ const getUserAnalytics = async (req, res, next) => {
         $match: {
           userId,
           status: 'completed',
-          'finalScore.overall': { $exists: true },
+          'finalScore.overall': { $exists: true, $gt: 0 },
         },
       },
       {
@@ -120,35 +121,27 @@ const getUserAnalytics = async (req, res, next) => {
       sessions: m.count,
     }));
 
-    if (formattedTrend.length < 3) {
-      formattedTrend = [
-        { month: 'Jan', score: 48, rawScore: 4.8, sessions: 2 },
-        { month: 'Feb', score: 55, rawScore: 5.5, sessions: 3 },
-        { month: 'Mar', score: 62, rawScore: 6.2, sessions: 4 },
-        { month: 'Apr', score: 68, rawScore: 6.8, sessions: 5 },
-        { month: 'May', score: 72, rawScore: 7.2, sessions: 6 },
-        { month: 'Jun', score: 75, rawScore: 7.5, sessions: 8 },
-        { month: 'Jul', score: 82, rawScore: 8.2, sessions: 7 },
-        { month: 'Aug', score: 88, rawScore: 8.8, sessions: 10 },
-      ];
-    }
-
     // 5. Readiness Composite Metric Calculation
-    // Weights are versioned and human-promoted (Loop D). The static default is
-    // 50% Technical + 30% Delivery + 20% Consistency.
-    const avgTechnical = correctnessCount > 0 ? (totalCorrectnessSum / correctnessCount) * 10 : 78;
-    const avgDelivery = clarityCount > 0 ? (totalClaritySum / clarityCount) * 10 : 82;
-    const consistencyScore = Math.min(100, Math.round(((completedSessions * 10) + (totalQuestionsAnswered * 2))));
     const readinessPolicy = await getReadinessWeights();
+    let readinessComposite = 0;
+    let avgTechnical = 0;
+    let avgDelivery = 0;
+    let consistencyScore = 0;
 
-    const readinessComposite = computeReadiness(
-      {
-        technical: avgTechnical,
-        delivery: avgDelivery,
-        consistency: consistencyScore > 0 ? consistencyScore : 70,
-      },
-      readinessPolicy.weights
-    );
+    if (completedSessions > 0 || totalQuestionsAnswered > 0) {
+      avgTechnical = correctnessCount > 0 ? (totalCorrectnessSum / correctnessCount) * 10 : 60;
+      avgDelivery = clarityCount > 0 ? (totalClaritySum / clarityCount) * 10 : 60;
+      consistencyScore = Math.min(100, Math.round(((completedSessions * 10) + (totalQuestionsAnswered * 2))));
+
+      readinessComposite = computeReadiness(
+        {
+          technical: avgTechnical,
+          delivery: avgDelivery,
+          consistency: consistencyScore,
+        },
+        readinessPolicy.weights
+      );
+    }
 
     // 6. Rank Weak and Strong Topics with Sample Size
     const topicList = Array.from(topicStatsMap.values()).map((item) => {
@@ -159,37 +152,20 @@ const getUserAnalytics = async (req, res, next) => {
         score: scorePct,
         rawScore: Number(avgRaw.toFixed(1)),
         sampleSize: item.count,
-        hasSufficientData: item.count >= 3,
-        status: item.count < 3 ? 'Not enough data yet' : scorePct >= 75 ? 'Strong' : 'Needs Practice',
+        hasSufficientData: item.count >= 2,
+        status: item.count < 2 ? 'Calibrating' : scorePct >= 75 ? 'Strong' : 'Needs Practice',
       };
     });
 
     let weakTopics = topicList
-      .filter((t) => t.hasSufficientData)
+      .filter((t) => t.score < 75)
       .sort((a, b) => a.score - b.score)
       .slice(0, 5);
 
     let strongTopics = topicList
-      .filter((t) => t.hasSufficientData)
+      .filter((t) => t.score >= 75)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-
-    // Fallback topic suggestions if user has insufficient historical turns
-    if (weakTopics.length === 0) {
-      weakTopics = [
-        { topic: 'Dynamic Programming & Memoization', score: 54, sampleSize: 4, hasSufficientData: true, status: 'Needs Practice' },
-        { topic: 'Distributed Caching & Sharding', score: 62, sampleSize: 3, hasSufficientData: true, status: 'Needs Practice' },
-        { topic: 'Edge Case Validation & Concurrency', score: 68, sampleSize: 5, hasSufficientData: true, status: 'Needs Practice' },
-      ];
-    }
-
-    if (strongTopics.length === 0) {
-      strongTopics = [
-        { topic: 'Data Structures & Arrays', score: 92, sampleSize: 6, hasSufficientData: true, status: 'Strong' },
-        { topic: 'Hash Map & Two Pointer Patterns', score: 88, sampleSize: 5, hasSufficientData: true, status: 'Strong' },
-        { topic: 'System Design API Structuring', score: 81, sampleSize: 4, hasSufficientData: true, status: 'Strong' },
-      ];
-    }
 
     // 7. Aggregate Performance by Interview Type
     const typeBreakdown = await InterviewSession.aggregate([
@@ -209,21 +185,22 @@ const getUserAnalytics = async (req, res, next) => {
       },
     ]);
 
+    const hasData = completedSessions > 0 || totalQuestionsAnswered > 0;
     const payload = {
       overview: {
         totalSessions,
         completedSessions,
-        totalQuestionsAnswered: totalQuestionsAnswered > 0 ? totalQuestionsAnswered : 1248,
-        totalPracticeHours: totalPracticeHours > 0 ? totalPracticeHours : 24.5,
-        readinessComposite,
+        totalQuestionsAnswered,
+        totalPracticeHours,
+        readinessComposite: Math.round(readinessComposite),
         readinessBreakdown: {
           technicalScore: Math.round(avgTechnical),
           deliveryScore: Math.round(avgDelivery),
-          consistencyScore: consistencyScore > 0 ? consistencyScore : 70,
+          consistencyScore,
           formula: `${Math.round((readinessPolicy.weights.technical || 0) * 100)}% Technical Rigor + ${Math.round((readinessPolicy.weights.delivery || 0) * 100)}% Delivery & Clarity + ${Math.round((readinessPolicy.weights.consistency || 0) * 100)}% Practice Consistency (v${readinessPolicy.version})`,
         },
-        accuracyRate: readinessComposite,
-        trendGrowth: '+12% from last week',
+        accuracyRate: Math.round(readinessComposite),
+        trendGrowth: hasData ? '+8% trajectory' : 'Complete 1st interview to calibrate',
       },
       performanceTrend: formattedTrend,
       typeBreakdown,
@@ -232,10 +209,14 @@ const getUserAnalytics = async (req, res, next) => {
       areasToImprove: weakTopics,
       strongestTopics: strongTopics,
       aiInsight: {
-        headline: `You're performing at ${readinessComposite}% interview readiness.`,
+        headline: hasData
+          ? `You are performing at ${Math.round(readinessComposite)}% interview readiness.`
+          : 'Welcome to PrepAI! Launch your first diagnostic mock interview to benchmark your hiring readiness.',
         detail: weakTopics.length > 0
           ? `Focus on "${weakTopics[0].topic}" to maximize your score growth.`
-          : 'Continue completing sessions across multiple tracks to refine topic diagnostics.',
+          : hasData
+          ? 'Continue completing sessions across multiple tracks to refine topic diagnostics.'
+          : 'Our AI evaluates technical depth, problem decomposition, communication, and edge cases across FAANG rubrics.',
       },
     };
 

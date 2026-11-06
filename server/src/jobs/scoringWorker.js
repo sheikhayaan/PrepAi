@@ -54,23 +54,25 @@ const processScoringJob = async (sessionId) => {
   await session.save();
   await cache.del(`analytics:user:${session.userId}`);
 
-  // Loop A: update the candidate ability estimate off the request path.
-  const abilityResult = await updateAbility({
-    userId: session.userId,
-    type: session.type,
-    score: Number(scoreResult.overall) || 0,
-  });
+  // Loop A: update the candidate ability estimate off the request path (only for substantive attempts)
+  if (!scoreResult.isEmptySession && Number(scoreResult.overall) > 0) {
+    const abilityResult = await updateAbility({
+      userId: session.userId,
+      type: session.type,
+      score: Number(scoreResult.overall) || 0,
+    });
 
-  // Loop A: update item difficulty for every bank question in this session.
-  for (const turn of session.turns || []) {
-    const overall = Number(turn.turnScore?.overall);
-    if (turn.questionId && Number.isFinite(overall)) {
-      await applyItemElo({
-        questionId: String(turn.questionId),
-        type: session.type,
-        score: overall,
-        ability: abilityResult?.ability,
-      });
+    // Loop A: update item difficulty for every bank question in this session.
+    for (const turn of session.turns || []) {
+      const overall = Number(turn.turnScore?.overall);
+      if (turn.questionId && Number.isFinite(overall)) {
+        await applyItemElo({
+          questionId: String(turn.questionId),
+          type: session.type,
+          score: overall,
+          ability: abilityResult?.ability,
+        });
+      }
     }
   }
 

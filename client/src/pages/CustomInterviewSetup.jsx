@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useInterviewStore } from '../store/useInterviewStore';
 import {
   Sliders,
@@ -79,13 +79,29 @@ const INTERVIEW_TRACKS = [
 
 export default function CustomInterviewSetup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const topicParam = searchParams.get('topic') || '';
+
+  const getInitialType = (topic) => {
+    if (!topic) return 'dsa';
+    const t = topic.toLowerCase();
+    if (t.includes('system') || t.includes('cache') || t.includes('distribut') || t.includes('shard')) return 'system_design';
+    if (t.includes('behavior') || t.includes('star') || t.includes('conflict')) return 'behavioral';
+    if (t.includes('hr') || t.includes('culture')) return 'hr_round';
+    if (t.includes('case') || t.includes('consult')) return 'case_study';
+    if (t.includes('product') || t.includes('pm') || t.includes('metric')) return 'product_management';
+    if (t.includes('sales') || t.includes('pitch') || t.includes('revenue')) return 'sales_pitch';
+    if (t.includes('manage') || t.includes('lead') || t.includes('coach')) return 'managerial';
+    return 'dsa';
+  };
+
   const { startInterview, loading, error } = useInterviewStore();
 
   const [role, setRole] = useState('Senior Full Stack Engineer');
   const [targetCompany, setTargetCompany] = useState('Stripe');
   const [region, setRegion] = useState('india'); // 'india' | 'us'
   const [targetSalary, setTargetSalary] = useState('32');
-  const [selectedType, setSelectedType] = useState('dsa');
+  const [selectedType, setSelectedType] = useState(() => getInitialType(topicParam));
   const [validationError, setValidationError] = useState('');
 
   const currency = region === 'india' ? 'INR' : 'USD';
@@ -125,6 +141,7 @@ export default function CustomInterviewSetup() {
       region,
       targetSalary: numSalary,
       currency,
+      focusTopic: topicParam || undefined,
     };
 
     const res = await startInterview(selectedType, {
@@ -159,6 +176,24 @@ export default function CustomInterviewSetup() {
         </div>
 
         {/* Builder Form Card */}
+        {topicParam && (
+          <div className="mb-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-indigo-400" />
+              <div>
+                <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Targeted Practice Focus</p>
+                <p className="text-sm font-semibold text-white">Topic: {topicParam}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/custom-interview')}
+              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+            >
+              Clear Focus
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="glass-window p-6 sm:p-8 rounded-2xl border border-hairline space-y-8 shadow-2xl">
           {(validationError || error) && (
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium animate-in fade-in duration-200">

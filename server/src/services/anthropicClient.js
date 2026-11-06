@@ -1125,16 +1125,14 @@ function generateSimulatedScore(sessionData) {
     const emptyScore = {
       overall: 0.0,
       percentile: 0,
-      seniorityFit: 'Incomplete / No Answers Submitted',
-      strongPoints: ['Session started, but no candidate answers were recorded.'],
+      isEmptySession: true,
+      seniorityFit: 'Incomplete Session (No Answers Provided)',
+      strongPoints: [],
       weakPoints: [
-        'Candidate submitted the session without providing answers to the interviewer questions.',
-        'Zero structured responses, methodology, or problem-solving demonstrated.',
+        'Candidate completed the session without providing answers to the interviewer questions.',
+        'Zero structured responses, code, or methodology demonstrated.',
       ],
-      actionPlan: [
-        'Day 1-2: Review core interview tracks and preparation frameworks.',
-        'Day 3-5: Practice completing at least 1 full mock interview with active spoken/written responses.',
-      ],
+      actionPlan: [],
       feedback: `No score awarded (0.0 / 10). The interview session was completed without providing answers to the questions. To receive a valid hiring bar diagnostic, please provide responses during the session.`,
     };
     rubric.dimensions.forEach((d) => {

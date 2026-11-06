@@ -150,7 +150,11 @@ const startInterview = async (req, res, next) => {
           selected = questions[Math.floor(Math.random() * questions.length)];
           selectedQuestionId = selected ? String(selected._id) : null;
         }
-        initialPrompt = selected.prompt;
+        if (selected) {
+          initialPrompt = selected.prompt;
+          selectedQuestionId = String(selected._id);
+          initialModelAnswer = selected.modelAnswer || '';
+        }
       } else {
         // High quality fallback per type
         switch (type) {
@@ -637,6 +641,7 @@ const getUserInterviews = async (req, res, next) => {
 const getQuestions = async (req, res, next) => {
   try {
     const { company, level, type, difficulty, search } = req.query;
+    const limitNum = Math.min(parseInt(req.query.limit, 10) || 500, 500);
     const filter = {};
 
     if (company && company !== 'All') {
@@ -649,36 +654,35 @@ const getQuestions = async (req, res, next) => {
       filter.type = type;
     }
     if (difficulty && difficulty !== 'All') {
-      filter.difficulty = difficulty;
+      filter.difficulty = difficulty.toLowerCase();
     }
     if (search) {
       const cleanSearch = sanitizeInput(search, 80);
       filter.prompt = { $regex: cleanSearch, $options: 'i' };
     }
 
-    const cacheKey = `questions:list:${String(company || '')}:${String(level || '')}:${String(type || '')}:${String(difficulty || '')}:${String(search || '').slice(0, 40)}`;
+    // Auto-sync check: if DB has fewer questions than seed list, sync questions
+    const totalInBank = await QuestionBank.countDocuments();
+    const { questions: seedList } = require('../config/seed');
+    if (totalInBank < seedList.length) {
+      await QuestionBank.deleteMany({});
+      await QuestionBank.insertMany(seedList);
+      logger.info(`QuestionBank auto-synced with ${seedList.length} curated questions`);
+    }
+
+    const cacheKey = `questions:list:${String(company || '')}:${String(level || '')}:${String(type || '')}:${String(difficulty || '')}:${String(search || '').slice(0, 40)}:${limitNum}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
       return res.json({ ...cached, cached: true });
     }
 
-    let query = QuestionBank.find(filter).sort({ createdAt: -1 }).limit(100);
+    let query = QuestionBank.find(filter).sort({ createdAt: -1 }).limit(limitNum);
     if (config.mongo.secondaryReads) query = query.read('secondaryPreferred');
     let questions = await query;
+    const totalMatching = await QuestionBank.countDocuments(filter);
 
-    // Self-healing: If QuestionBank collection is completely empty, populate from seed questions
-    if (questions.length === 0) {
-      const totalInBank = await QuestionBank.countDocuments();
-      if (totalInBank === 0) {
-        const { questions: seedList } = require('../config/seed');
-        await QuestionBank.insertMany(seedList);
-        logger.info('QuestionBank self-healed and populated from seed questions');
-        questions = await QuestionBank.find(filter).sort({ createdAt: -1 }).limit(100);
-      }
-    }
-
-    const payload = { count: questions.length, questions };
-    await cache.set(cacheKey, payload, 120);
+    const payload = { count: questions.length, total: totalMatching, questions };
+    await cache.set(cacheKey, payload, 60);
     return res.json(payload);
   } catch (error) {
     logger.error('Get questions error', { error });
@@ -707,17 +711,28 @@ const getTurnModelAnswer = async (req, res, next) => {
       return res.json({ modelAnswer: turn.modelAnswer });
     }
 
-    // Check QuestionBank if questionId is set
+    // 1. Check QuestionBank by questionId
     if (turn.questionId) {
       const q = await QuestionBank.findById(turn.questionId).lean();
-      if (q && q.modelAnswer) {
+      if (q && q.modelAnswer && q.modelAnswer.trim().length > 30) {
         turn.modelAnswer = q.modelAnswer;
         await session.save();
         return res.json({ modelAnswer: q.modelAnswer });
       }
     }
 
-    // Dynamically generate official model answer with Gemini
+    // 2. Check QuestionBank by matching question prompt
+    const cleanPrompt = turn.question ? turn.question.trim() : '';
+    if (cleanPrompt) {
+      const q = await QuestionBank.findOne({ prompt: cleanPrompt }).lean();
+      if (q && q.modelAnswer && q.modelAnswer.trim().length > 30) {
+        turn.modelAnswer = q.modelAnswer;
+        await session.save();
+        return res.json({ modelAnswer: q.modelAnswer });
+      }
+    }
+
+    // 3. Dynamically generate official model answer with Gemini
     if (geminiClient.isConfigured()) {
       const gen = await geminiClient.generateModelAnswer({
         question: turn.question,
@@ -733,7 +748,24 @@ const getTurnModelAnswer = async (req, res, next) => {
       }
     }
 
-    const defaultAnswer = `### Optimal Solution & Strategy\n\nFor **${turn.question}**, the optimal approach focuses on achieving the best possible time and space complexity, handling all corner cases, and clearly communicating the architectural and algorithmic trade-offs.`;
+    // 4. Bar Raiser Comprehensive Strategy Template
+    const defaultAnswer = `### 1. Optimal Solution & Strategy Framework
+For this question at **${session.targetCompany || 'Tier-1 Tech'}** (${session.seniorityLevel || 'Senior'}), a bar-raising approach requires establishing clear requirements upfront, determining state bounds, and decomposing the problem using structured frameworks.
+
+### 2. Core Execution & Architecture
+- **State & Data Invariants:** Validate input types, identify edge boundaries, and select optimal data structures (e.g. Hash Maps, Trees, Graphs, or Distributed Queues).
+- **Algorithmic/System Trade-offs:** Balance time complexity against auxiliary memory and network round-trips.
+
+### 3. Edge Cases & Resilience
+- Validate null, empty, single-item collections, and extreme bounds.
+- Account for concurrency, idempotency, or communication failures where applicable.
+
+### 4. Bar Raiser Evaluation Checkpoints
+- Clear articulation of reasoning before implementation.
+- Proactive validation against edge cases and clean, modular design.`;
+
+    turn.modelAnswer = defaultAnswer;
+    await session.save();
     return res.json({ modelAnswer: defaultAnswer });
   } catch (error) {
     logger.error('Get turn model answer error', { error });

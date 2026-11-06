@@ -156,23 +156,41 @@ export default function ResultsPage() {
                 PERCENTILE RANKING
               </span>
               <p className="text-3xl font-extrabold text-white mt-1">
-                Top {100 - (finalScore.percentile ?? 0)}%
+                {finalScore.overall === 0 ? 'Unranked (0%)' : `Top ${100 - (finalScore.percentile ?? 0)}%`}
               </p>
               <p className="text-[10px] text-text-secondary mt-1">
-                Ahead of {finalScore.percentile ?? 0}% of candidates targeting this band
+                {finalScore.overall === 0
+                  ? 'No responses submitted'
+                  : `Ahead of ${finalScore.percentile ?? 0}% of candidates targeting this band`}
               </p>
             </div>
 
             {/* Level Alignment Badge */}
-            <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
-              <span className="text-[10px] text-emerald-400 font-bold tracking-wider uppercase">
+            <div className={`flex flex-col items-center justify-center p-4 rounded-xl text-center border ${
+              finalScore.overall === 0
+                ? 'bg-amber-500/10 border-amber-500/30'
+                : 'bg-emerald-500/10 border-emerald-500/30'
+            }`}>
+              <span className={`text-[10px] font-bold tracking-wider uppercase ${
+                finalScore.overall === 0 ? 'text-amber-400' : 'text-emerald-400'
+              }`}>
                 CALIBRATED LEVEL FIT
               </span>
               <p className="text-base font-bold text-white mt-1">
-                {finalScore.seniorityFit}
+                {finalScore.overall === 0 ? 'Incomplete Session' : finalScore.seniorityFit}
               </p>
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold mt-1">
-                <CheckCircle2 className="w-3 h-3" /> Offer Ready Band
+              <span className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 ${
+                finalScore.overall === 0 ? 'text-amber-400' : 'text-emerald-400'
+              }`}>
+                {finalScore.overall === 0 ? (
+                  <>
+                    <AlertTriangle className="w-3 h-3" /> No Answers Recorded
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3 h-3" /> Offer Ready Band
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -333,14 +351,20 @@ export default function ResultsPage() {
                   <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
                     <CheckCircle2 className="w-4 h-4" /> Strong Points (Demonstrated)
                   </h4>
-                  <ul className="space-y-2">
-                    {(finalScore.strongPoints || []).map((sp, idx) => (
-                      <li key={idx} className="text-xs text-text-primary flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5" />
-                        <span>{sp}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {finalScore.strongPoints && finalScore.strongPoints.length > 0 ? (
+                    <ul className="space-y-2">
+                      {finalScore.strongPoints.map((sp, idx) => (
+                        <li key={idx} className="text-xs text-text-primary flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5" />
+                          <span>{sp}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-text-muted italic py-2">
+                      No substantive responses were recorded during this session. Provide answers during your next mock interview to calibrate your strengths.
+                    </p>
+                  )}
                 </div>
 
                 {/* Weak Points */}
@@ -363,26 +387,51 @@ export default function ResultsPage() {
 
           {activeTab === 'actionPlan' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="p-4 rounded-2xl bg-surface/70 border border-hairline">
-                <h4 className="text-xs font-bold text-white flex items-center gap-2 mb-1">
-                  <Calendar className="w-4 h-4 text-accent" />
-                  Personalized 7-Day Sprint Roadmap
-                </h4>
-                <p className="text-xs text-text-secondary">
-                  Tailored practice regime to address observed diagnostic weak points before your actual on-site interview.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {(finalScore.actionPlan || []).map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-xl bg-surface/80 border border-hairline flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-lg bg-accent/20 border border-accent/40 text-accent font-bold text-xs flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </div>
-                    <p className="text-xs sm:text-sm text-text-primary font-medium">{item}</p>
+              {finalScore.overall === 0 || !finalScore.actionPlan || finalScore.actionPlan.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-surface/70 border border-hairline text-center space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+                    <AlertTriangle className="w-6 h-6" />
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <h4 className="text-base font-bold text-white mb-1">
+                      Action Plan Unavailable for Incomplete Session
+                    </h4>
+                    <p className="text-xs text-text-secondary max-w-md mx-auto">
+                      Because this interview was submitted without responses, no diagnostic weaknesses could be identified. Complete a session with your answers or code to generate a custom 7-day preparation roadmap.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/setup')}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-xl transition shadow-lg shadow-accent/20 cursor-pointer"
+                  >
+                    <span>Start Practice Session</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 rounded-2xl bg-surface/70 border border-hairline">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2 mb-1">
+                      <Calendar className="w-4 h-4 text-accent" />
+                      Personalized 7-Day Sprint Roadmap
+                    </h4>
+                    <p className="text-xs text-text-secondary">
+                      Tailored practice regime to address observed diagnostic weak points before your actual on-site interview.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {finalScore.actionPlan.map((item, idx) => (
+                      <div key={idx} className="p-4 rounded-xl bg-surface/80 border border-hairline flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-lg bg-accent/20 border border-accent/40 text-accent font-bold text-xs flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </div>
+                        <p className="text-xs sm:text-sm text-text-primary font-medium">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
