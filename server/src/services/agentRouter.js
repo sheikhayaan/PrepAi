@@ -293,11 +293,11 @@ Region: ${customConfig?.region || 'global'}`;
         systemPrompt,
         userPrompt,
         temperature: 0.7,
-        maxTokens: 250,
+        maxTokens: 1024,
         timeoutMs: config.agentRouter.timeoutMs || 10000,
       });
 
-      if (primaryRes.ok && primaryRes.content) {
+      if (primaryRes.ok && primaryRes.content && primaryRes.content.trim().length >= 80) {
         // Increment user's allowance counter so they only use 1 interview
         if (userId) {
           User.findByIdAndUpdate(userId, { $inc: { agentRouterInterviewsCount: 1 } }).catch(() => {});

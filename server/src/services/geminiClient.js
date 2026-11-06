@@ -68,14 +68,18 @@ class GeminiClient {
     const apiKey = config.gemini.apiKey;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const prompt = `You are an elite Senior Staff Bar Raiser at ${cleanCompany}.
-Conducting interview for: ${cleanLevel}
+    const prompt = `You are a Principal Bar Raiser and Technical Interviewer at ${cleanCompany} conducting an interview for a ${cleanLevel} candidate.
 Track: ${type.toUpperCase()}
-Compensation Band: ${targetPackage}
+Target Compensation Band: ${targetPackage}
 
-Generate ONE realistic, authentic, challenging opening interview question for this candidate.
-Output ONLY the question text (2 to 3 sentences maximum) with technical constraints clearly stated.
-Do NOT include markdown preambles or greetings.`;
+Generate ONE realistic, complete, production-grade interview question for this candidate.
+Your question MUST be comprehensive and clearly structured:
+- Scenario & Context: A realistic real-world engineering or business scenario at ${cleanCompany}.
+- Problem Statement: Clear challenge and what the candidate needs to design, implement, or evaluate.
+- Concrete Constraints / Examples: Specific scale, inputs/outputs, latency/throughput bounds, or organizational parameters.
+- Opening Call to Action: A prompt asking the candidate to explain their high-level approach, assumptions, and trade-offs before diving deep.
+
+Do NOT truncate your output. Output the complete, polished question directly without meta-commentary or conversational greetings like "Hello".`;
 
     const payload = {
       contents: [
@@ -86,7 +90,8 @@ Do NOT include markdown preambles or greetings.`;
       ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 250,
+        maxOutputTokens: 2048,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     };
 
@@ -127,11 +132,18 @@ Do NOT include markdown preambles or greetings.`;
       }
 
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const candidate = data?.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      const text = candidate?.content?.parts?.[0]?.text?.trim();
 
-      if (!text) {
+      if (!text || text.length < 80 || finishReason === 'MAX_TOKENS') {
+        logger.warn('Gemini question invalid or truncated', {
+          finishReason,
+          length: text?.length,
+          preview: text?.substring(0, 80),
+        });
         this.stats.errors++;
-        return { ok: false, reason: 'empty_response' };
+        return { ok: false, reason: finishReason === 'MAX_TOKENS' ? 'truncated' : 'incomplete_response' };
       }
 
       this.stats.successes++;
@@ -190,8 +202,9 @@ Evaluate the answer and return STRICT JSON with exactly these keys:
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 500,
+        maxOutputTokens: 1024,
         responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
       },
     };
 
@@ -219,11 +232,18 @@ Evaluate the answer and return STRICT JSON with exactly these keys:
       }
 
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const candidate = data?.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      const text = candidate?.content?.parts?.[0]?.text?.trim();
 
-      if (!text) {
+      if (!text || text.length < 80 || finishReason === 'MAX_TOKENS') {
+        logger.warn('Gemini question invalid or truncated', {
+          finishReason,
+          length: text?.length,
+          preview: text?.substring(0, 80),
+        });
         this.stats.errors++;
-        return { ok: false, reason: 'empty_response' };
+        return { ok: false, reason: finishReason === 'MAX_TOKENS' ? 'truncated' : 'incomplete_response' };
       }
 
       let parsed = JSON.parse(text);

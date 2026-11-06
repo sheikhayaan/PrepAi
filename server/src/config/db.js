@@ -20,6 +20,22 @@ const connectDB = async (retries = 3) => {
       ensureIndexes().catch((error) =>
         console.error(`Index bootstrap failed: ${error.message}`)
       );
+
+      // Auto-bootstrap QuestionBank if database collection is empty
+      const QuestionBank = require('../models/QuestionBank');
+      const { questions } = require('./seed');
+      QuestionBank.countDocuments()
+        .then(async (count) => {
+          if (count === 0) {
+            console.log(`QuestionBank collection is empty. Auto-seeding ${questions.length} curated questions...`);
+            await QuestionBank.insertMany(questions);
+            console.log(`✅ QuestionBank auto-seeded successfully with ${questions.length} curated questions!`);
+          } else {
+            console.log(`QuestionBank verified: ${count} questions active.`);
+          }
+        })
+        .catch((err) => console.error(`QuestionBank auto-seed check failed: ${err.message}`));
+
       return conn;
     } catch (error) {
       console.error(`MongoDB Connection Attempt ${attempt}/${retries} Error: ${error.message}`);

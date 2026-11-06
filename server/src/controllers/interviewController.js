@@ -92,9 +92,17 @@ const startInterview = async (req, res, next) => {
     let selectedQuestionId = null;
     let selectionPolicyVersion = 'static-v1';
     if (!initialPrompt) {
-      const questions = await cache.getOrSet(`bank:${type}:all`, 300, () =>
+      let questions = await cache.getOrSet(`bank:${type}:all`, 300, () =>
         QuestionBank.find({ type }).lean()
       );
+      if (!questions || questions.length === 0) {
+        const total = await QuestionBank.countDocuments();
+        if (total === 0) {
+          const { questions: seedList } = require('../config/seed');
+          await QuestionBank.insertMany(seedList);
+          questions = await QuestionBank.find({ type }).lean();
+        }
+      }
       if (questions && questions.length > 0) {
         let selected = null;
         if (config.learning.selectionEnabled) {
@@ -572,7 +580,18 @@ const getQuestions = async (req, res, next) => {
 
     let query = QuestionBank.find(filter).sort({ createdAt: -1 }).limit(100);
     if (config.mongo.secondaryReads) query = query.read('secondaryPreferred');
-    const questions = await query;
+    let questions = await query;
+
+    // Self-healing: If QuestionBank collection is completely empty, populate from seed questions
+    if (questions.length === 0) {
+      const totalInBank = await QuestionBank.countDocuments();
+      if (totalInBank === 0) {
+        const { questions: seedList } = require('../config/seed');
+        await QuestionBank.insertMany(seedList);
+        logger.info('QuestionBank self-healed and populated from seed questions');
+        questions = await QuestionBank.find(filter).sort({ createdAt: -1 }).limit(100);
+      }
+    }
 
     const payload = { count: questions.length, questions };
     await cache.set(cacheKey, payload, 120);
