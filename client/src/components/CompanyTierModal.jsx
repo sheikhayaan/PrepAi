@@ -313,17 +313,17 @@ export default function CompanyTierModal({ isOpen = true, onClose }) {
         )}
 
         {/* Modal Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-6 border-t border-hairline mt-6">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-6 border-t border-hairline mt-6">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-hairline text-xs font-semibold text-text-secondary hover:text-white hover:bg-surface cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-hairline text-xs font-semibold text-text-secondary hover:text-white hover:bg-surface cursor-pointer text-center"
           >
             Cancel
           </button>
           <button
             onClick={handleStart}
             disabled={loading}
-            className="btn-primary-glow px-7 py-2.5 rounded-xl text-xs font-semibold text-white flex items-center gap-2 cursor-pointer shadow-glow-accent"
+            className="w-full sm:w-auto btn-primary-glow px-7 py-2.5 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 cursor-pointer shadow-glow-accent"
           >
             {loading ? (
               <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />

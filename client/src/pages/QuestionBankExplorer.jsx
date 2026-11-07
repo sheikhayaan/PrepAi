@@ -216,12 +216,12 @@ export default function QuestionBankExplorer() {
               <Building2 className="w-3.5 h-3.5 text-accent" />
               Company Tags:
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex overflow-x-auto no-scrollbar sm:flex-wrap gap-2 pb-1.5 -mx-1 px-1">
               {COMPANIES.map((company) => (
                 <button
                   key={company}
                   onClick={() => setSelectedCompany(company)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shrink-0 ${
                     selectedCompany === company
                       ? 'bg-accent text-white border-accent shadow-[0_0_10px_rgba(91,140,255,0.4)] font-semibold'
                       : 'bg-surface/60 text-text-secondary border-hairline hover:text-white hover:bg-surface-hover'
@@ -519,10 +519,10 @@ export default function QuestionBankExplorer() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-hairline bg-surface/60 flex items-center justify-between gap-3">
+            <div className="p-4 border-t border-hairline bg-surface/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <button
                 onClick={() => setSolutionModalQuestion(null)}
-                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-hover text-text-secondary hover:text-white text-xs font-semibold border border-hairline cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-surface hover:bg-surface-hover text-text-secondary hover:text-white text-xs font-semibold border border-hairline cursor-pointer text-center"
               >
                 Close
               </button>
@@ -533,7 +533,7 @@ export default function QuestionBankExplorer() {
                   handlePracticeQuestion(q);
                 }}
                 disabled={launchingId === solutionModalQuestion._id}
-                className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-accent/20 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-accent/20 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 Practice This Question Now

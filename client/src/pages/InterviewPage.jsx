@@ -324,34 +324,34 @@ export default function InterviewPage() {
       {/* ─────────────────────────────────────────────────────────────
           ZONE 1: TOP BAR (Fixed, Minimal)
       ───────────────────────────────────────────────────────────── */}
-      <header className="h-14 border-b border-white/[0.08] bg-[#07090e]/90 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0 select-none">
+      <header className="h-14 border-b border-white/[0.08] bg-[#07090e]/90 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between z-30 shrink-0 select-none">
         {/* Left: Exit button */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={() => {
               if (window.confirm('Leave interview session? Your completed turns are safely recorded.')) {
                 navigate('/dashboard');
               }
             }}
-            className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white px-2 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Exit</span>
+            <span className="hidden xs:inline">Exit</span>
           </button>
           <div className="h-4 w-px bg-white/10" />
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
             <span className="font-semibold tracking-tight text-indigo-400">PrepAI</span>
             <span className="text-slate-500">·</span>
-            <span className="text-slate-200 font-medium truncate max-w-[240px] md:max-w-none">
+            <span className="text-slate-200 font-medium truncate max-w-[110px] sm:max-w-[240px] md:max-w-none">
               {roleDisplay} @ {companyDisplay}
             </span>
           </div>
         </div>
 
         {/* Right: Stepper Dots & Timer & Finish */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-2.5 sm:gap-5">
           {/* Turn Progress Indicators */}
-          <div className="flex items-center gap-2" title={`Turn ${currentTurnIdx} of ${totalTurns}`}>
+          <div className="hidden sm:flex items-center gap-2" title={`Turn ${currentTurnIdx} of ${totalTurns}`}>
             <div className="flex items-center gap-1.5">
               {Array.from({ length: totalTurns }).map((_, i) => (
                 <div
@@ -366,13 +366,13 @@ export default function InterviewPage() {
                 />
               ))}
             </div>
-            <span className="text-xs font-medium text-slate-400 ml-1.5 hidden sm:inline">
+            <span className="text-xs font-medium text-slate-400 ml-1.5 hidden md:inline">
               Turn {currentTurnIdx}/{totalTurns}
             </span>
           </div>
 
           {/* Session Timer */}
-          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300 bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 rounded-md">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300 bg-white/[0.04] border border-white/[0.08] px-2 sm:px-2.5 py-1 rounded-md">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>{formatTime(elapsedSeconds)}</span>
           </div>
@@ -381,10 +381,10 @@ export default function InterviewPage() {
           <button
             onClick={handleCompleteSession}
             disabled={isCompleting}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-3.5 py-1.5 rounded-lg shadow-sm transition-all"
+            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-2.5 sm:px-3.5 py-1.5 rounded-lg shadow-sm transition-all"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>{isCompleting ? 'Scoring...' : 'Finish & Score'}</span>
+            <span>{isCompleting ? 'Scoring...' : 'Finish'}</span>
           </button>
         </div>
       </header>
@@ -722,7 +722,7 @@ export default function InterviewPage() {
           />
 
           {/* Slide Drawer Content */}
-          <div className="relative w-80 md:w-96 bg-[#0c101a] border-l border-white/[0.1] h-full shadow-2xl p-6 flex flex-col z-10 animate-in slide-in-from-right duration-200">
+          <div className="relative w-[88vw] sm:w-80 md:w-96 bg-[#0c101a] border-l border-white/[0.1] h-full shadow-2xl p-5 sm:p-6 flex flex-col z-10 animate-in slide-in-from-right duration-200">
 
             {/* Drawer Header */}
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">

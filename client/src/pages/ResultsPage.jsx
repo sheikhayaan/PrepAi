@@ -196,10 +196,10 @@ export default function ResultsPage() {
           </div>
 
           {/* Tab Selector: Evaluation Summary vs 7-Day Action Plan vs Solutions vs Transcript */}
-          <div className="flex gap-2 p-1 bg-surface/90 border border-hairline rounded-xl mb-6">
+          <div className="flex gap-2 p-1 bg-surface/90 border border-hairline rounded-xl mb-6 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('evaluation')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`shrink-0 sm:flex-1 py-2 px-3 sm:px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'evaluation'
                   ? 'bg-accent text-white shadow-[0_0_12px_rgba(91,140,255,0.4)]'
                   : 'text-text-secondary hover:text-white'
@@ -209,7 +209,7 @@ export default function ResultsPage() {
             </button>
             <button
               onClick={() => setActiveTab('actionPlan')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`shrink-0 sm:flex-1 py-2 px-3 sm:px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'actionPlan'
                   ? 'bg-accent text-white shadow-[0_0_12px_rgba(91,140,255,0.4)]'
                   : 'text-text-secondary hover:text-white'
@@ -219,7 +219,7 @@ export default function ResultsPage() {
             </button>
             <button
               onClick={() => setActiveTab('solutions')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`shrink-0 sm:flex-1 py-2 px-3 sm:px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'solutions'
                   ? 'bg-accent text-white shadow-[0_0_12px_rgba(91,140,255,0.4)]'
                   : 'text-text-secondary hover:text-white'
@@ -229,7 +229,7 @@ export default function ResultsPage() {
             </button>
             <button
               onClick={() => setActiveTab('transcript')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`shrink-0 sm:flex-1 py-2 px-3 sm:px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'transcript'
                   ? 'bg-accent text-white shadow-[0_0_12px_rgba(91,140,255,0.4)]'
                   : 'text-text-secondary hover:text-white'

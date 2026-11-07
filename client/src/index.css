@@ -16,13 +16,15 @@
   --warning: #FBBF24;
 }
 
-body {
+html, body {
   margin: 0;
   background-color: var(--bg);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .font-serif-heading {
@@ -110,6 +112,26 @@ body {
 
 .tilted-dashboard:hover {
   transform: rotateX(4deg) rotateY(-4deg) rotateZ(1deg);
+}
+
+/* Neutralize 3D tilt on mobile devices to prevent horizontal page overflow */
+@media (max-width: 768px) {
+  .perspective-container {
+    perspective: none !important;
+  }
+  .tilted-dashboard,
+  .tilted-dashboard:hover {
+    transform: none !important;
+  }
+}
+
+/* Hide scrollbars for horizontal chip trays */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Cosmic Light Ray */

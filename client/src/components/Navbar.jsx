@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { AnimatedTopDock } from '../shaders/animated-top-dock/AnimatedTopDock';
@@ -9,6 +9,15 @@ import {
   Database,
   Sliders,
   Shield,
+  Menu,
+  X,
+  Play,
+  Home,
+  Layers,
+  HelpCircle,
+  CreditCard,
+  LogOut,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -16,7 +25,14 @@ export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setDropdownOpen(false);
+  }, [location.pathname]);
 
   // Hidden during active interview screen per DESIGN.md Section 3 Layout rules
   if (location.pathname.match(/^\/interview\/[a-zA-Z0-9_-]+$/)) {
@@ -117,7 +133,270 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="sticky top-0 z-40 w-full pt-2 pb-1 px-3 sm:px-6 pointer-events-none transition-all">
+      {/* ─────────────────────────────────────────────────────────────
+          1. MOBILE TOP BAR (< 768px viewport)
+      ───────────────────────────────────────────────────────────── */}
+      <div className="md:hidden sticky top-0 z-40 w-full px-4 py-3 bg-[#07090e]/90 backdrop-blur-xl border-b border-white/10 pointer-events-auto transition-all">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          {/* Mobile Brand */}
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              setMobileMenuOpen(false);
+              navigate('/');
+            }}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center p-1 shadow-md shadow-blue-500/20">
+              <svg viewBox="0 0 24 24" className="w-full h-full">
+                <path d="M12 3L2 19h7l3-6 3 6h7L12 3z" fill="#FFFFFF" />
+                <path d="M12 9l-3 6h6l-3-6z" fill="#93C5FD" />
+              </svg>
+            </div>
+            <span className="font-extrabold text-base tracking-tight text-white">
+              Prep<span className="text-blue-400">AI</span>
+            </span>
+          </a>
+
+          {/* Mobile Right Controls */}
+          <div className="flex items-center gap-2">
+            {user ? (
+              <button
+                onClick={() => setShowTierModal(true)}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>Mock</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
+
+            {/* Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-blue-400" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          2. MOBILE MENU DRAWER (< 768px viewport)
+      ───────────────────────────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-[#07090e]/95 backdrop-blur-2xl animate-in fade-in duration-150">
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center p-1">
+                <svg viewBox="0 0 24 24" className="w-full h-full">
+                  <path d="M12 3L2 19h7l3-6 3 6h7L12 3z" fill="#FFFFFF" />
+                  <path d="M12 9l-3 6h6l-3-6z" fill="#93C5FD" />
+                </svg>
+              </div>
+              <span className="font-extrabold text-base tracking-tight text-white">
+                Prep<span className="text-blue-400">AI</span>
+              </span>
+            </div>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Drawer Body */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* User Profile Badge (if logged in) */}
+            {user && (
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-white truncate">{user.name}</p>
+                  {user?.email?.toLowerCase() === 'sheikhayaan408@gmail.com' ? (
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[9px] font-extrabold uppercase border border-purple-500/30">
+                      SUPERADMIN
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[9px] font-bold">
+                      PRO CANDIDATE
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+              </div>
+            )}
+
+            {/* Navigation Links */}
+            <div className="space-y-1 font-medium text-sm">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <Home className="w-4 h-4 text-blue-400" />
+                <span>Home</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/features');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <Layers className="w-4 h-4 text-blue-400" />
+                <span>Features</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/how-it-works');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-blue-400" />
+                <span>How It Works</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/questions');
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <Database className="w-4 h-4 text-blue-400" />
+                  <span>500+ Question Bank</span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold">500 Qs</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/custom-interview');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <Sliders className="w-4 h-4 text-blue-400" />
+                <span>Custom Mock Builder</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/pricing');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+              >
+                <CreditCard className="w-4 h-4 text-blue-400" />
+                <span>Pricing Plans</span>
+              </button>
+
+              {user && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/dashboard');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 text-left transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  <span>My Dashboard</span>
+                </button>
+              )}
+
+              {user?.email?.toLowerCase() === 'sheikhayaan408@gmail.com' && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/admin');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-purple-300 hover:text-purple-200 hover:bg-purple-500/10 text-left font-semibold transition-colors cursor-pointer"
+                >
+                  <Shield className="w-4 h-4 text-purple-400" />
+                  <span>Admin Command Center</span>
+                </button>
+              )}
+            </div>
+
+            {/* Direct Mock CTA */}
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (user) {
+                    setShowTierModal(true);
+                  } else {
+                    navigate('/register');
+                  }
+                }}
+                className="w-full btn-primary-glow py-3 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>{user ? 'Start FAANG Mock Interview' : 'Get Started Free'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Drawer Footer */}
+          <div className="p-5 border-t border-white/10 bg-black/20">
+            {user ? (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out ({user.name.split(' ')[0]})</span>
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/login');
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 border border-white/10 hover:bg-white/10 text-center transition-colors cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/register');
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 text-center transition-colors cursor-pointer"
+                >
+                  Create Account
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          3. DESKTOP ANIMATED TOP DOCK (>= 768px viewport)
+      ───────────────────────────────────────────────────────────── */}
+      <div className="hidden md:block sticky top-0 z-40 w-full pt-2 pb-1 px-3 sm:px-6 pointer-events-none transition-all">
         <div className="pointer-events-auto max-w-7xl mx-auto flex justify-center">
           <AnimatedTopDock
             variant="modern"
@@ -161,7 +440,7 @@ export default function Navbar() {
         />
       )}
 
-      {/* User dropdown menu if logged in */}
+      {/* User dropdown menu if logged in (Desktop) */}
       {dropdownOpen && user && (
         <>
           {/* Backdrop overlay to close dropdown */}
