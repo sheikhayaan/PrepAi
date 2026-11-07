@@ -18,12 +18,51 @@ import {
   RotateCcw,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
   Terminal,
   Clock,
   Layers,
   BookOpen,
   Loader2,
 } from 'lucide-react';
+
+// Split long raw questions into the core conversational challenge and optional guidance
+function parsePrompt(text) {
+  if (!text) return { mainQuestion: '', guidance: '' };
+  let clean = text.replace(/^#+\s+/gm, '').trim();
+
+  const instructionKeywords = [
+    'State your initial thought process',
+    'Clarify functional and non-functional',
+    'Structure your response rigorously',
+    'Provide an authentic, structured response',
+    'Decompose the business problem using',
+    'Present an executive pitch',
+    'Walk through your operational triage',
+    'Present a structured managerial roadmap',
+    'Walk me through your 1-on-1',
+    'What are the space and time complexities',
+  ];
+
+  for (const kw of instructionKeywords) {
+    const idx = clean.indexOf(kw);
+    if (idx > 0) {
+      const main = clean.slice(0, idx).trim().replace(/[\.\s]*$/, '');
+      const guidance = clean.slice(idx).trim();
+      return { mainQuestion: main, guidance };
+    }
+  }
+
+  const firstPeriod = clean.indexOf('. ');
+  if (firstPeriod > 35 && clean.length > 160) {
+    return {
+      mainQuestion: clean.slice(0, firstPeriod).trim(),
+      guidance: clean.slice(firstPeriod + 2).trim(),
+    };
+  }
+
+  return { mainQuestion: clean, guidance: '' };
+}
 
 const INTERVIEW_TYPE_TITLES = {
   dsa: 'Data Structures & Algorithms',
@@ -102,6 +141,7 @@ export default function InterviewPage() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [voiceVolume, setVoiceVolume] = useState(0);
   const [isTTSEnabled, setIsTTSEnabled] = useState(true);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [loadingModelAnswerIdx, setLoadingModelAnswerIdx] = useState(null);
@@ -122,6 +162,7 @@ export default function InterviewPage() {
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const micStreamRef = useRef(null);
+  const utteranceRef = useRef(null);
 
   // Initial load
   useEffect(() => {
@@ -138,22 +179,62 @@ export default function InterviewPage() {
     };
   }, [id]);
 
-  // Read AI questions aloud if TTS is enabled
+  // Read AI questions aloud if TTS is enabled (speaks concise main question)
   const speakQuestion = (text) => {
-    if (!isTTSEnabled || !('speechSynthesis' in window) || !text) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
+    if (!('speechSynthesis' in window) || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      const { mainQuestion } = parsePrompt(text);
+      const toSpeak = mainQuestion || text;
+
+      const utterance = new SpeechSynthesisUtterance(toSpeak);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+
+      // Pick an English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const preferred =
+          voices.find(
+            (v) =>
+              v.lang.startsWith('en') &&
+              (v.name.includes('Google') ||
+                v.name.includes('Natural') ||
+                v.name.includes('Samantha') ||
+                v.name.includes('Siri') ||
+                v.name.includes('Daniel'))
+          ) || voices.find((v) => v.lang.startsWith('en'));
+        if (preferred) utterance.voice = preferred;
+      }
+
+      utterance.onstart = () => setIsPlayingAudio(true);
+      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onerror = () => setIsPlayingAudio(false);
+
+      // Keep reference to prevent GC bug in Chrome/Safari
+      utteranceRef.current = utterance;
+      window._activeSpeechUtterance = utterance;
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis error:', err);
+      setIsPlayingAudio(false);
+    }
+  };
+
+  const stopAudio = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+    }
   };
 
   // Speak initial question or newly arrived question
   useEffect(() => {
     if (session?.turns?.length > 0) {
       const currentTurn = session.turns[session.turns.length - 1];
-      if (!currentTurn.answer && !isStreaming) {
+      if (!currentTurn.answer && !isStreaming && isTTSEnabled) {
         speakQuestion(currentTurn.question);
       }
     }
@@ -260,6 +341,7 @@ export default function InterviewPage() {
 
     if (!answerToSubmit || isStreaming || isSubmitting) return;
 
+    stopAudio();
     stopVoiceRecording();
     setIsSubmitting(true);
     setInputText('');
@@ -268,6 +350,26 @@ export default function InterviewPage() {
       await submitAnswer(answerToSubmit);
     } catch (e) {
       console.error('Answer submission error:', e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Advance to next question (Skip or quick proceed to turn)
+  const handleSkipQuestion = async () => {
+    if (isSubmitting || isStreaming) return;
+    stopAudio();
+    stopVoiceRecording();
+    setIsSubmitting(true);
+    try {
+      const skipAnswer =
+        session?.type === 'dsa' && codeSnippet.trim()
+          ? `// Candidate code solution:\n${codeSnippet}\n\nCandidate moved to next question.`
+          : inputText.trim() || '(Candidate skipped to next question)';
+      setInputText('');
+      await submitAnswer(skipAnswer);
+    } catch (e) {
+      console.error('Next question error:', e);
     } finally {
       setIsSubmitting(false);
     }
@@ -399,35 +501,86 @@ export default function InterviewPage() {
           <div className="flex-1 flex flex-col justify-between max-w-3xl w-full mx-auto py-4">
 
             {/* Question Card */}
-            <div className="relative bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="relative bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5 sm:p-7 shadow-2xl backdrop-blur-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   <Sparkles className="w-3.5 h-3.5" />
                   {INTERVIEW_TYPE_TITLES[session?.type] || 'Interview Question'}
                 </span>
-                <button
-                  onClick={() => setIsTTSEnabled(!isTTSEnabled)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors"
-                  title={isTTSEnabled ? 'Mute AI Voice' : 'Enable AI Voice'}
-                >
-                  {isTTSEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
-                </button>
+
+                <div className="flex items-center gap-2">
+                  {/* Direct Listen / Audio Button */}
+                  <button
+                    onClick={() => {
+                      if (isPlayingAudio) {
+                        stopAudio();
+                      } else {
+                        speakQuestion(activeQuestion);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      isPlayingAudio
+                        ? 'bg-indigo-600 text-white animate-pulse shadow-md shadow-indigo-500/30'
+                        : 'bg-white/[0.06] hover:bg-white/[0.12] text-indigo-300 hover:text-white border border-indigo-500/20'
+                    }`}
+                    title={isPlayingAudio ? 'Stop speaking' : 'Listen to question read aloud'}
+                  >
+                    {isPlayingAudio ? (
+                      <>
+                        <Volume2 className="w-4 h-4 text-white" />
+                        <span>Speaking... (Tap to stop)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4 text-indigo-400" />
+                        <span>🔊 Listen to Question</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsTTSEnabled(!isTTSEnabled);
+                      if (isTTSEnabled) stopAudio();
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors"
+                    title={isTTSEnabled ? 'Mute automatic speech' : 'Enable automatic speech'}
+                  >
+                    {isTTSEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+                  </button>
+                </div>
               </div>
 
-              {/* Dynamic Question Text */}
-              <h2 className="text-xl md:text-2xl font-semibold text-slate-100 leading-relaxed tracking-tight">
-                {activeQuestion}
-              </h2>
+              {/* Dynamic Question Text (Parsed into core challenge & guidance) */}
+              {(() => {
+                const { mainQuestion, guidance } = parsePrompt(activeQuestion);
+                return (
+                  <div className="space-y-3">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-100 leading-snug tracking-tight">
+                      {mainQuestion || activeQuestion}
+                    </h2>
+                    {guidance && (
+                      <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-indigo-200/90 leading-relaxed flex items-start gap-2">
+                        <span className="text-amber-400 text-sm mt-0.5 shrink-0">💡</span>
+                        <div>
+                          <strong className="text-white">Guidance & Criteria: </strong>
+                          <span>{guidance}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Processing Waveform / Pulse during Transition */}
               {(isStreaming || isSubmitting) && (
-                <div className="mt-6 pt-4 border-t border-white/[0.06] flex items-center gap-3 text-xs text-indigo-400">
+                <div className="mt-5 pt-3 border-t border-white/[0.06] flex items-center gap-3 text-xs text-indigo-400">
                   <div className="flex items-center gap-1">
                     <span className="w-1.5 h-4 bg-indigo-500 rounded-full animate-pulse" />
                     <span className="w-1.5 h-6 bg-indigo-400 rounded-full animate-pulse [animation-delay:150ms]" />
                     <span className="w-1.5 h-3 bg-indigo-500 rounded-full animate-pulse [animation-delay:300ms]" />
                   </div>
-                  <span>Claude 3.5 Sonnet is formulating adaptive follow-up...</span>
+                  <span>Formulating next adaptive interview question...</span>
                 </div>
               )}
             </div>
@@ -485,10 +638,10 @@ export default function InterviewPage() {
                   )}
 
                   {/* Actions Row */}
-                  <div className="flex items-center gap-4 mt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-3 w-full">
                     <button
                       onClick={() => setIsTextInputActive(true)}
-                      className="text-xs text-slate-400 hover:text-slate-200 hover:underline transition-colors"
+                      className="text-xs text-slate-400 hover:text-slate-200 hover:underline px-3 py-1.5 transition-colors cursor-pointer"
                     >
                       Switch to text answer ⌨
                     </button>
@@ -496,12 +649,21 @@ export default function InterviewPage() {
                       <button
                         onClick={handleAnswerSubmit}
                         disabled={isSubmitting || isStreaming}
-                        className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>Submit Answer</span>
                       </button>
                     )}
+                    <button
+                      onClick={handleSkipQuestion}
+                      disabled={isSubmitting || isStreaming}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                      title="Advance to the next question in this interview"
+                    >
+                      <span>Next Question</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -521,21 +683,32 @@ export default function InterviewPage() {
                       rows={5}
                       className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
                     />
-                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs">
+                    <div className="flex flex-wrap items-center justify-between pt-2 border-t border-white/[0.06] text-xs gap-2">
                       <button
                         onClick={() => setIsTextInputActive(false)}
-                        className="text-slate-400 hover:text-slate-200 hover:underline"
+                        className="text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
                       >
                         Switch back to voice 🎙
                       </button>
-                      <button
-                        onClick={handleAnswerSubmit}
-                        disabled={!inputText.trim() || isSubmitting || isStreaming}
-                        className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium rounded-lg shadow-sm transition-all"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Submit Response</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSkipQuestion}
+                          disabled={isSubmitting || isStreaming}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
+                          title="Advance to the next question"
+                        >
+                          <span>Next Question</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={handleAnswerSubmit}
+                          disabled={!inputText.trim() || isSubmitting || isStreaming}
+                          className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium rounded-lg shadow-sm transition-all cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Submit Response</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -547,20 +720,47 @@ export default function InterviewPage() {
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
 
             {/* Compact Persistent Question Strip */}
-            <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4 flex items-start justify-between gap-4 shrink-0">
-              <div className="flex items-start gap-3">
+            <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 sm:p-4 flex items-start justify-between gap-3 shrink-0">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
                 <span className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg shrink-0 mt-0.5">
                   <Code2 className="w-4 h-4" />
                 </span>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1">
-                    DSA Problem Scenario
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                      DSA Challenge
+                    </span>
                   </div>
-                  <p className="text-sm font-medium text-slate-200 leading-snug">
-                    {activeQuestion}
-                  </p>
+                  {(() => {
+                    const { mainQuestion, guidance } = parsePrompt(activeQuestion);
+                    return (
+                      <div className="space-y-1.5">
+                        <p className="text-xs sm:text-sm font-bold text-white leading-snug">
+                          {mainQuestion || activeQuestion}
+                        </p>
+                        {guidance && (
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            💡 <span className="text-slate-300 font-medium">{guidance}</span>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  if (isPlayingAudio) {
+                    stopAudio();
+                  } else {
+                    speakQuestion(activeQuestion);
+                  }
+                }}
+                className="p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-indigo-300 hover:text-white border border-white/[0.1] shrink-0 cursor-pointer"
+                title={isPlayingAudio ? 'Stop speaking' : 'Listen to question read aloud'}
+              >
+                <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'animate-bounce text-indigo-400' : ''}`} />
+              </button>
             </div>
 
             {/* Code Editor Stage */}
@@ -591,15 +791,24 @@ export default function InterviewPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRunCode}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-xs font-medium text-white rounded transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-xs font-medium text-white rounded transition-colors cursor-pointer"
                   >
                     <Play className="w-3 h-3 fill-current" />
                     <span>Run Tests</span>
                   </button>
                   <button
+                    onClick={handleSkipQuestion}
+                    disabled={isSubmitting || isStreaming}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-medium text-slate-200 rounded transition-colors cursor-pointer disabled:opacity-50"
+                    title="Advance to next question"
+                  >
+                    <span>Next</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                  <button
                     onClick={handleAnswerSubmit}
                     disabled={isSubmitting || isStreaming}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white rounded shadow-sm transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white rounded shadow-sm transition-colors cursor-pointer"
                   >
                     <Send className="w-3 h-3" />
                     <span>Submit Solution</span>

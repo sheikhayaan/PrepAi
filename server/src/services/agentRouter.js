@@ -297,7 +297,7 @@ Region: ${customConfig?.region || 'global'}`;
         timeoutMs: config.agentRouter.timeoutMs || 10000,
       });
 
-      if (primaryRes.ok && primaryRes.content && primaryRes.content.trim().length >= 80) {
+      if (primaryRes.ok && primaryRes.content && primaryRes.content.trim().length >= 20) {
         // Increment user's allowance counter so they only use 1 interview
         if (userId) {
           User.findByIdAndUpdate(userId, { $inc: { agentRouterInterviewsCount: 1 } }).catch(() => {});

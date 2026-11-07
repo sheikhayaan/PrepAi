@@ -187,6 +187,8 @@ const startInterview = async (req, res, next) => {
       }
     }
 
+    const safeInitialPrompt = initialPrompt || 'Please introduce yourself and your technical background.';
+
     const session = await InterviewSession.create({
       userId: req.user._id,
       type,
@@ -204,11 +206,11 @@ const startInterview = async (req, res, next) => {
       correlationId: req.id,
       agentRouterUsed: Boolean(routedOutcome?.agentRouterUsed),
       agentRouterCostUsd: Number(routedOutcome?.costUsd || 0),
-      tokenUsage: { promptTokens: 60, completionTokens: Math.ceil(initialPrompt.length / 4), totalTokens: 60 + Math.ceil(initialPrompt.length / 4) },
+      tokenUsage: { promptTokens: 60, completionTokens: Math.ceil(safeInitialPrompt.length / 4), totalTokens: 60 + Math.ceil(safeInitialPrompt.length / 4) },
       turns: [
         {
           questionId: selectedQuestionId || undefined,
-          question: initialPrompt,
+          question: safeInitialPrompt,
           answer: '',
           modelAnswer: initialModelAnswer,
           followUp: false,

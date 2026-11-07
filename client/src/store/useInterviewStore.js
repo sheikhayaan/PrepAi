@@ -90,12 +90,19 @@ export const useInterviewStore = create((set, get) => ({
       }
       set({ session: { ...session, turns: updatedTurns } });
 
+      const token = typeof window !== 'undefined' ? localStorage.getItem('prepai_token') : null;
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const answerUrl = `${API_BASE_URL ? API_BASE_URL : ''}/api/interviews/${session._id}/answer`;
       const response = await fetch(answerUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
+        credentials: 'include',
         body: JSON.stringify({ answer: answerText }),
       });
 
