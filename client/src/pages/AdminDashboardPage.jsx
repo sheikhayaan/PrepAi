@@ -309,7 +309,9 @@ export default function AdminDashboardPage() {
                   <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                 </div>
                 <div className="text-2xl font-bold text-white flex items-center gap-1.5">
-                  {metrics.ratingsMetrics?.overall ? metrics.ratingsMetrics.overall : '4.9'}
+                  {metrics.totalRatings > 0 && metrics.ratingsMetrics?.overall
+                    ? metrics.ratingsMetrics.overall
+                    : '0.0'}
                   <span className="text-xs text-amber-400 font-normal">/ 5.0</span>
                 </div>
                 <div className="text-[10px] text-amber-300 mt-1">
@@ -360,7 +362,8 @@ export default function AdminDashboardPage() {
                       </tr>
                     ) : (
                       usersList.map((u) => {
-                        const starRating = u.ratingScore || 5.0;
+                        const hasRated = Boolean(u.ratingsCount && u.ratingsCount > 0 && u.ratingScore !== null && u.ratingScore !== undefined);
+                        const starRating = hasRated ? u.ratingScore : null;
                         const score = u.averageScore;
                         return (
                           <tr key={u._id} className="hover:bg-surface-hover/50 transition-colors">
@@ -421,24 +424,28 @@ export default function AdminDashboardPage() {
                               )}
                             </td>
                             <td className="py-3 px-4">
-                              <div className="flex items-center gap-1 text-amber-400 font-semibold text-xs">
-                                <div className="flex">
-                                  {[1, 2, 3, 4, 5].map((s) => (
-                                    <Star
-                                      key={s}
-                                      className={`w-3 h-3 ${
-                                        s <= Math.round(starRating)
-                                          ? 'fill-amber-400 text-amber-400'
-                                          : 'text-hairline fill-transparent'
-                                      }`}
-                                    />
-                                  ))}
+                              {hasRated ? (
+                                <div className="flex items-center gap-1 text-amber-400 font-semibold text-xs">
+                                  <div className="flex">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star
+                                        key={s}
+                                        className={`w-3 h-3 ${
+                                          s <= Math.round(starRating)
+                                            ? 'fill-amber-400 text-amber-400'
+                                            : 'text-hairline fill-transparent'
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-white text-[11px] ml-1">{starRating.toFixed(1)}</span>
+                                  <span className="text-text-muted text-[10px]">
+                                    ({u.ratingsCount})
+                                  </span>
                                 </div>
-                                <span className="text-white text-[11px] ml-1">{starRating.toFixed(1)}</span>
-                                <span className="text-text-muted text-[10px]">
-                                  ({u.ratingsCount || 1})
-                                </span>
-                              </div>
+                              ) : (
+                                <span className="text-text-muted text-[11px] italic">Not rated yet</span>
+                              )}
                             </td>
                             <td className="py-3 px-4 text-right text-[11px] text-text-muted">
                               {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Recent'}

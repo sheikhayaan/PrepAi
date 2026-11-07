@@ -60,13 +60,13 @@ const getAdminOverview = async (req, res) => {
     ]);
 
     const ratingsMetrics =
-      ratingAgg.length > 0
+      ratingAgg.length > 0 && ratingAgg[0].avgRating !== null
         ? {
             overall: parseFloat(ratingAgg[0].avgRating.toFixed(2)),
-            voiceQuality: parseFloat((ratingAgg[0].voiceQuality || 5).toFixed(2)),
-            questionDepth: parseFloat((ratingAgg[0].questionDepth || 5).toFixed(2)),
-            scoringAccuracy: parseFloat((ratingAgg[0].scoringAccuracy || 5).toFixed(2)),
-            latencySpeed: parseFloat((ratingAgg[0].latencySpeed || 5).toFixed(2)),
+            voiceQuality: parseFloat((ratingAgg[0].voiceQuality || 0).toFixed(2)),
+            questionDepth: parseFloat((ratingAgg[0].questionDepth || 0).toFixed(2)),
+            scoringAccuracy: parseFloat((ratingAgg[0].scoringAccuracy || 0).toFixed(2)),
+            latencySpeed: parseFloat((ratingAgg[0].latencySpeed || 0).toFixed(2)),
           }
         : { overall: 0, voiceQuality: 0, questionDepth: 0, scoringAccuracy: 0, latencySpeed: 0 };
 
