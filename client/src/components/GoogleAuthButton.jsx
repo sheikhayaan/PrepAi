@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/useAuthStore';
-import { Sparkles, Shield, AlertCircle, X, ArrowRight } from 'lucide-react';
+import api from '../api/client';
+import { Sparkles, Shield, AlertCircle, X, ArrowRight, CheckCircle2, Info } from 'lucide-react';
 
 export default function GoogleAuthButton({ text = 'Continue with Google', onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -9,11 +10,23 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [backendClientId, setBackendClientId] = useState('');
 
-  const hasClientId = Boolean(
-    import.meta.env.VITE_GOOGLE_CLIENT_ID &&
-    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('dummy')
-  );
+  const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const activeClientId = envClientId || backendClientId;
+  const hasClientId = Boolean(activeClientId && !activeClientId.includes('dummy'));
+
+  useEffect(() => {
+    if (!envClientId) {
+      api.get('/auth/google/client-id')
+        .then((res) => {
+          if (res.data?.clientId) {
+            setBackendClientId(res.data.clientId);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [envClientId]);
 
   // Hook for Google OAuth popup
   let googleLoginTrigger = null;
@@ -125,7 +138,7 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
         </p>
       )}
 
-      {/* Google OAuth Modal (when VITE_GOOGLE_CLIENT_ID is pending or for instant one-click testing) */}
+      {/* Google OAuth Modal */}
       {showConfigModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-surface border border-hairline rounded-2xl p-6 shadow-2xl relative space-y-5">
@@ -149,18 +162,20 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
             <div className="p-3.5 rounded-xl bg-black/40 border border-hairline/60 space-y-2 text-xs text-text-secondary">
               <p className="font-semibold text-white text-[11px] flex items-center gap-1.5 text-indigo-300">
                 <Shield className="w-3.5 h-3.5" />
-                Production Setup Guide:
+                Why Google Client ID is Safe & Public:
               </p>
-              <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-300">
-                <li>Create an OAuth 2.0 Web Client in <span className="text-white font-mono">console.cloud.google.com</span>.</li>
-                <li>Add origin: <span className="text-indigo-400 font-mono">https://prep-ai-plum-theta.vercel.app</span></li>
-                <li>Set <span className="text-indigo-400 font-mono">VITE_GOOGLE_CLIENT_ID</span> in Vercel & <span className="text-indigo-400 font-mono">GOOGLE_CLIENT_ID</span> in Render.</li>
-              </ol>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                The <strong>Client ID</strong> is meant to be public so Google knows which app is asking to sign in. It is protected by Google's domain verification (<span className="text-indigo-400 font-mono">prep-ai-plum-theta.vercel.app</span>).
+              </p>
+              <div className="pt-1.5 border-t border-white/[0.06] text-[10px] text-slate-400 space-y-0.5">
+                <p>• In <strong>Render</strong>: set <span className="font-mono text-white">GOOGLE_CLIENT_ID</span></p>
+                <p>• In <strong>Vercel</strong>: set <span className="font-mono text-white">VITE_GOOGLE_CLIENT_ID</span> (or backend supplies it automatically)</p>
+              </div>
             </div>
 
             <div className="space-y-2 pt-1">
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Instant Sign In Options:
+                Instant Sign In:
               </p>
 
               {/* 1-Click Superadmin Login */}

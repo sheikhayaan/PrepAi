@@ -24,6 +24,13 @@ router.use(standardApiTimeout);
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
 router.post('/google', authLimiter, googleAuth);
+
+// Public helper: provide Google Client ID to frontend so it doesn't need to be duplicated in Vercel
+router.get('/google/client-id', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || '';
+  res.json({ clientId: clientId !== 'dummy_client_id' ? clientId : '' });
+});
+
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password', authLimiter, resetPassword);
 router.post('/verify-email', standardLimiter, verifyEmail);
