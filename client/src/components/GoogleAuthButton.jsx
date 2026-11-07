@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/client';
-import { Sparkles, Shield, AlertCircle, X, ArrowRight, CheckCircle2, Info } from 'lucide-react';
+import { Sparkles, Shield, AlertCircle, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function GoogleAuthButton({ text = 'Continue with Google', onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
+  const [manualClientId, setManualClientId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [backendClientId, setBackendClientId] = useState('');
 
   const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-  const activeClientId = envClientId || backendClientId;
-  const hasClientId = Boolean(activeClientId && !activeClientId.includes('dummy'));
+  const activeClientId = envClientId || backendClientId || manualClientId;
+  const hasClientId = Boolean(activeClientId && !activeClientId.includes('dummy') && activeClientId.trim().length > 10);
 
+  // Fetch backend Google Client ID if not provided in Vercel environment
   useEffect(() => {
     if (!envClientId) {
       api.get('/auth/google/client-id')
@@ -28,15 +29,44 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
     }
   }, [envClientId]);
 
-  // Hook for Google OAuth popup
-  let googleLoginTrigger = null;
-  if (hasClientId) {
+  // Ensure Google Identity Services script is loaded
+  useEffect(() => {
+    if (!window.google?.accounts) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  const triggerGooglePopup = (clientIdToUse) => {
+    const id = clientIdToUse || activeClientId;
+    if (!id) {
+      setShowConfigModal(true);
+      return;
+    }
+
+    if (!window.google?.accounts?.oauth2) {
+      setErrorMsg('Google Services are loading. Please try again in 2 seconds.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
     try {
-      googleLoginTrigger = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: id.trim(),
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            setLoading(false);
+            setErrorMsg(`Google login cancelled: ${tokenResponse.error}`);
+            return;
+          }
+
           try {
-            setLoading(true);
-            setErrorMsg('');
             // Fetch verified user profile from Google's standard userinfo endpoint
             const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
@@ -48,6 +78,7 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
               id: profile.sub,
               picture: profile.picture,
             });
+
             if (authRes.success) {
               if (onSuccess) onSuccess();
             } else {
@@ -59,24 +90,13 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
             setLoading(false);
           }
         },
-        onError: (err) => {
-          console.error('Google OAuth trigger error:', err);
-          setErrorMsg('Google login popup was closed or cancelled.');
-          setLoading(false);
-        },
       });
-    } catch {
-      googleLoginTrigger = null;
-    }
-  }
 
-  const handleClick = () => {
-    if (hasClientId && googleLoginTrigger) {
-      setLoading(true);
-      setErrorMsg('');
-      googleLoginTrigger();
-    } else {
-      setShowConfigModal(true);
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch (err) {
+      console.error('Failed to trigger Google OAuth popup:', err);
+      setErrorMsg(err.message || 'Failed to initialize Google popup.');
+      setLoading(false);
     }
   };
 
@@ -108,7 +128,13 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
       <button
         type="button"
         disabled={loading}
-        onClick={handleClick}
+        onClick={() => {
+          if (hasClientId) {
+            triggerGooglePopup(activeClientId);
+          } else {
+            setShowConfigModal(true);
+          }
+        }}
         className="w-full py-3 px-4 rounded-xl bg-surface hover:bg-surface-hover border border-hairline/80 hover:border-text-secondary text-text-primary text-xs font-semibold flex items-center justify-center gap-3 transition-all cursor-pointer shadow-sm hover:shadow-md disabled:opacity-50"
       >
         <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -159,23 +185,57 @@ export default function GoogleAuthButton({ text = 'Continue with Google', onSucc
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-black/40 border border-hairline/60 space-y-2 text-xs text-text-secondary">
-              <p className="font-semibold text-white text-[11px] flex items-center gap-1.5 text-indigo-300">
-                <Shield className="w-3.5 h-3.5" />
-                Why Google Client ID is Safe & Public:
-              </p>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                The <strong>Client ID</strong> is meant to be public so Google knows which app is asking to sign in. It is protected by Google's domain verification (<span className="text-indigo-400 font-mono">prep-ai-plum-theta.vercel.app</span>).
-              </p>
-              <div className="pt-1.5 border-t border-white/[0.06] text-[10px] text-slate-400 space-y-0.5">
-                <p>• In <strong>Render</strong>: set <span className="font-mono text-white">GOOGLE_CLIENT_ID</span></p>
-                <p>• In <strong>Vercel</strong>: set <span className="font-mono text-white">VITE_GOOGLE_CLIENT_ID</span> (or backend supplies it automatically)</p>
+            {/* If Client ID was added in Render or Vercel, trigger directly */}
+            {hasClientId ? (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-2">
+                <p className="font-bold flex items-center gap-1.5 text-white">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  Google Client ID Detected!
+                </p>
+                <p className="text-[11px] text-slate-300">
+                  Ready to launch authentic Google account selector popup.
+                </p>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => triggerGooglePopup(activeClientId)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition cursor-pointer"
+                >
+                  Launch Google Login Popup
+                </button>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-black/40 border border-hairline/60 space-y-2 text-xs text-text-secondary">
+                <p className="font-semibold text-white text-[11px] flex items-center gap-1.5 text-indigo-300">
+                  <Shield className="w-3.5 h-3.5" />
+                  Paste Client ID or Configure in Render / Vercel:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="xxxx.apps.googleusercontent.com"
+                    value={manualClientId}
+                    onChange={(e) => setManualClientId(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-black/50 border border-hairline rounded-lg text-[11px] text-white placeholder:text-text-muted focus:border-accent outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={!manualClientId.trim()}
+                    onClick={() => triggerGooglePopup(manualClientId.trim())}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+                  >
+                    Test Popup
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Note: Remember to redeploy Vercel if you recently added <span className="font-mono text-white">VITE_GOOGLE_CLIENT_ID</span>.
+                </p>
+              </div>
+            )}
 
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1 border-t border-white/[0.06]">
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Instant Sign In:
+                1-Click Instant Sign In:
               </p>
 
               {/* 1-Click Superadmin Login */}
