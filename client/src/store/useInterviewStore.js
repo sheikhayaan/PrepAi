@@ -60,11 +60,10 @@ export const useInterviewStore = create((set, get) => ({
     try {
       const res = await api.get(`/interviews/${session._id}/turns/${turnIndex}/model-answer`);
       if (res.data?.modelAnswer) {
-        const updatedTurns = [...session.turns];
-        if (updatedTurns[turnIndex]) {
-          updatedTurns[turnIndex].modelAnswer = res.data.modelAnswer;
-          set({ session: { ...session, turns: updatedTurns } });
-        }
+        const updatedTurns = (session.turns || []).map((t, idx) =>
+          idx === turnIndex ? { ...t, modelAnswer: res.data.modelAnswer } : t
+        );
+        set({ session: { ...session, turns: updatedTurns } });
         return res.data.modelAnswer;
       }
       return null;

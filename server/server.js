@@ -26,6 +26,7 @@ const { isLlmEnabled } = require('./src/services/anthropicClient');
 const learningScheduler = require('./src/learning/scheduler');
 const telemetryTracker = require('./src/utils/telemetryTracker');
 const agentRouter = require('./src/services/agentRouter');
+const selfHealingService = require('./src/services/selfHealingService');
 
 // Initialize Express application
 const app = express();
@@ -265,6 +266,7 @@ const server = app.listen(config.port, () => {
   );
   console.log('=========================================');
   learningScheduler.start();
+  selfHealingService.startAutonomousMonitor();
 });
 
 // Connection & Header Timeouts. Keep-alive must exceed the LB idle timeout;
@@ -295,6 +297,7 @@ async function gracefulShutdown(signal) {
     // Tell SSE clients to reconnect (they resume with Last-Event-ID), then end
     // the sockets so server.close() can resolve.
     learningScheduler.stop();
+    selfHealingService.stopAutonomousMonitor();
     await connectionRegistry.drainAll(config.server.sseDrainMs);
     streamRegistry.closeAll();
     await llmResilience.drainQueue();

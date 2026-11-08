@@ -53,14 +53,7 @@ function parsePrompt(text) {
     }
   }
 
-  const firstPeriod = clean.indexOf('. ');
-  if (firstPeriod > 35 && clean.length > 160) {
-    return {
-      mainQuestion: clean.slice(0, firstPeriod).trim(),
-      guidance: clean.slice(firstPeriod + 2).trim(),
-    };
-  }
-
+  // Preserve full question context intact - never truncate multi-sentence questions
   return { mainQuestion: clean, guidance: '' };
 }
 
@@ -179,15 +172,22 @@ export default function InterviewPage() {
     };
   }, [id]);
 
-  // Read AI questions aloud if TTS is enabled (speaks concise main question)
+  // Read AI questions aloud if TTS is enabled (speaks full question naturally)
   const speakQuestion = (text) => {
     if (!('speechSynthesis' in window) || !text) return;
     try {
       window.speechSynthesis.cancel();
-      const { mainQuestion } = parsePrompt(text);
-      const toSpeak = mainQuestion || text;
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
 
-      const utterance = new SpeechSynthesisUtterance(toSpeak);
+      // Strip markdown asterisks, hashes, backticks and links for clean natural TTS
+      const cleanToSpeak = text
+        .replace(/[*#_`]/g, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .trim();
+
+      const utterance = new SpeechSynthesisUtterance(cleanToSpeak);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.lang = 'en-US';
@@ -478,6 +478,16 @@ export default function InterviewPage() {
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>{formatTime(elapsedSeconds)}</span>
           </div>
+
+          {/* Mobile Solution & Rubric Drawer Button (Direct access without obstructive docks) */}
+          <button
+            onClick={() => setActiveDrawer(activeDrawer ? null : 'solution')}
+            className="flex md:hidden items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-2 sm:px-2.5 py-1 rounded-lg hover:bg-emerald-900/50 transition-colors"
+            title="Open Solution & Evaluation Rubric"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px]">Solution</span>
+          </button>
 
           {/* Complete Interview Action */}
           <button
@@ -856,8 +866,8 @@ export default function InterviewPage() {
       {/* ─────────────────────────────────────────────────────────────
           ZONE 3: UTILITY RAIL (Collapsed Dock & Slide-Over Drawers)
       ───────────────────────────────────────────────────────────── */}
-      {/* Floating Icon Dock */}
-      <aside className="fixed right-4 bottom-6 flex flex-col gap-2 z-40">
+      {/* Floating Icon Dock - Responsive: Hidden on Mobile to prevent obscuring UI */}
+      <aside className="hidden md:flex fixed right-4 bottom-6 flex-col gap-2 z-40">
         <div className="bg-[#0e131f]/90 border border-white/[0.1] rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1.5">
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'rubric' ? null : 'rubric')}
@@ -934,7 +944,7 @@ export default function InterviewPage() {
           <div className="relative w-[88vw] sm:w-80 md:w-96 bg-[#0c101a] border-l border-white/[0.1] h-full shadow-2xl p-5 sm:p-6 flex flex-col z-10 animate-in slide-in-from-right duration-200">
 
             {/* Drawer Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 {activeDrawer === 'solution' && <BookOpen className="w-4 h-4 text-emerald-400" />}
                 {activeDrawer === 'rubric' && <BarChart2 className="w-4 h-4 text-indigo-400" />}
@@ -954,6 +964,60 @@ export default function InterviewPage() {
                 className="p-1 text-slate-400 hover:text-white rounded hover:bg-white/[0.06]"
               >
                 <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Drawer Tab Switcher (accessible on mobile & desktop) */}
+            <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] rounded-xl border border-white/[0.06] my-3 text-xs overflow-x-auto shrink-0">
+              <button
+                onClick={() => setActiveDrawer('solution')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  activeDrawer === 'solution'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Solution
+              </button>
+              <button
+                onClick={() => setActiveDrawer('rubric')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  activeDrawer === 'rubric'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Rubric
+              </button>
+              <button
+                onClick={() => setActiveDrawer('history')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  activeDrawer === 'history'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                History
+              </button>
+              <button
+                onClick={() => setActiveDrawer('scratchpad')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  activeDrawer === 'scratchpad'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Notes
+              </button>
+              <button
+                onClick={() => setActiveDrawer('info')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  activeDrawer === 'info'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Info
               </button>
             </div>
 

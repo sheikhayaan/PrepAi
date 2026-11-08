@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Zap,
   Star,
+  Loader2,
 } from 'lucide-react';
 
 export default function ResultsPage() {
@@ -28,6 +29,7 @@ export default function ResultsPage() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const [revealingIndex, setRevealingIndex] = useState(null);
 
   useEffect(() => {
     let interval = null;
@@ -479,13 +481,28 @@ export default function ResultsPage() {
                       <div className="p-3 rounded-lg bg-surface/40 border border-hairline/40 text-xs text-text-muted flex items-center justify-between gap-3">
                         <span>Click to reveal the official Bar Raiser model solution.</span>
                         <button
+                          disabled={revealingIndex === i}
                           onClick={async () => {
-                            await fetchTurnModelAnswer(i);
+                            setRevealingIndex(i);
+                            try {
+                              await fetchTurnModelAnswer(i);
+                            } finally {
+                              setRevealingIndex(null);
+                            }
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Reveal Solution
+                          {revealingIndex === i ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Generating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Reveal Solution</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     )}
